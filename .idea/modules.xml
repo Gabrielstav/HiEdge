@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$USER_HOME$/Pipeline/hiedge/.idea/hiedge.iml" filepath="$USER_HOME$/Pipeline/hiedge/.idea/hiedge.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/HiEdge.iml" filepath="$PROJECT_DIR$/.idea/HiEdge.iml" />
     </modules>
   </component>
 </project>
