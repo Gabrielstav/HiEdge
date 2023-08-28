@@ -1,0 +1,17 @@
+paths:
+  input_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel/combined"
+  output_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/output"
+  reference_dir: "/Users/GBS/Master/Reference"
+  nchg_path: "/Users/GBS/Master/Scripts/NCHG_hic/NCHG"
+
+settings:
+  no_split: False
+  normalized_data: None
+  inter_interactions: False
+  intra_interactions: True
+  mixed_interactions: False
+  threads: 8
+  fdr_threshold: 0.05
+  resolutions: 1000000
+  nchg_executor: "multiprocessing"
+  n_quantiles: 100

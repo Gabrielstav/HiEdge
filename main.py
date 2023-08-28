@@ -16,6 +16,9 @@ import pickle as pickle
 import threading as threading
 from collections import defaultdict
 
+
+# split: pipeline parameters
+
 ####################################################
 # Pre-processing pipeline for Hi-C data from HiC-Pro
 ####################################################
@@ -31,7 +34,7 @@ help_message = "HiC_Pipeline for processing Hi-C data from HiC-Pro to statistica
                "    cytoBand_hg19.txt (USCS cytoband reference file: https://hgdownload.cse.ucsc.edu/goldenpath/hg19/database/) \n" \
                "    hg19-blacklist.v2.bed (Encode hg19 blacklisted regions: https://github.com/Boyle-Lab/Blacklist/tree/master/lists) \n\n" \
                "NCHG PATH: -n \n" \
-               "Path to NCHG executable is set as NCHG path. NCHG is a C++ tool for calculating p-values for Hi-C interactions using the NCHG distribution. \n" \
+               "Path to NCHG executable is set as NCHG path. NCHG is a statistical tool written in C++ for calculating p-values for Hi-C interactions using the NCHG distribution. \n" \
                "It can be found here: https://github.com/Chrom3D/preprocess_scripts/blob/master/NCHG_hic.zip.\n" \
                "Credit: Jonas Paulsen (2017). \n\n" \
                "NORM OPTION: -m \n" \
@@ -95,6 +98,9 @@ resolutions = args.resolutions
 executor_type = args.executor
 no_split = args.no_split
 n_quantiles = args.n_quantiles
+
+
+# split: pipeline setup
 
 
 class SetDirectories:
@@ -314,8 +320,9 @@ if executor_type is not None:
 
 # Sets temporary directory for pbt without cleanup
 pbt.set_tempdir(SetDirectories.get_pbt_temp_dir())
-pbt.cleanup(False)
+pbt.cleanup(False) # Where does this need to be ? Make general settings or something in a file
 
+# split: pipeline input parsing
 
 class Pipeline_Input:
 
@@ -502,6 +509,8 @@ def check_file_exists(file_path):
 
 class Pipeline:
 
+# split: make bedpe
+
     @staticmethod
     def make_bedpe(bed_file, matrix_file):
         """
@@ -574,6 +583,8 @@ class Pipeline:
             with open(experiment + "_" + resolution + ".bedpe", "w") as f:
                 f.writelines(bedpe)
                 f.close()
+
+# split: remove blacklist
 
     @staticmethod
     def remove_blacklisted_regions(bedpe_file):
@@ -652,6 +663,8 @@ class Pipeline:
                     tid = threading.get_ident()
                     print(f"Error processing {bedpe_file}: {e}, PID: {os.getpid()}, TID: {tid}")
 
+# split: remove cytobands
+
     @staticmethod
     def remove_cytobands(blacklisted_bedpe_file):
         """
@@ -726,6 +739,8 @@ class Pipeline:
                 except Exception as e:
                     tid = threading.get_ident()
                     print(f"Error processing {bedpe_file}: {e}, PID: {os.getpid()}, TID: {tid}")
+
+# split: significant interactions
 
     @staticmethod
     def find_significant_interactions(bedpe_file):
@@ -818,6 +833,8 @@ class Pipeline:
             tid = threading.get_ident()
             print(f"Error in {bedpe_file}: {e}, PID: {os.getpid()}, TID: {tid}")
             raise
+
+
 
     @staticmethod
     def split_bedpe_by_chromosome_pairs(bedpe_file, output_dir):
@@ -978,6 +995,8 @@ class Pipeline:
                 for nchg_output in nchg_outputs:
                     f.writelines(nchg_output)
 
+# split: padj
+
     @staticmethod
     def adjust_pvalues(nchg_file, fdr_thresh=SetDirectories.get_fdr_threshold(), log_ratio_threshold=2, method="fdr_bh"):
         """
@@ -1060,6 +1079,8 @@ class Pipeline:
                 except Exception as e:
                     tid = threading.get_ident()
                     print(f"Error processing {nchg_file}: {e}, PID: {os.getpid()}, TID: {tid}")
+
+# split: make edgelist
 
     @staticmethod
     def make_weighted_edgelist(padj_file_path):
@@ -1178,6 +1199,8 @@ class Pipeline:
                     print(f"Error processing {padj_file_path}: {e}, PID: {os.getpid()}, TID: {tid}")
 
 
+
+# split:  Main method
 def run_pipeline():
     """
     Call selected methods of the HiC_Pipeline, in the order specified
