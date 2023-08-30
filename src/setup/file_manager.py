@@ -75,29 +75,59 @@ class FileManager:
         return bedfiles, matrixfiles, iced_matrixfiles
 
     @staticmethod
-    def handle_missing_files(found_resolutions, resolutions_provided, *file_counts):
+    def handle_missing_files(bedfile_count, matrixfile_count, iced_matrixfile_count, found_resolutions, resolutions_provided):
 
-        file_counts = {
-            'bedfiles': len(bedfiles),
-            'matrixfiles': len(matrixfiles),
-            'iced_matrixfiles': len(iced_matrixfiles)
-        }
-
-        # If no files were found for the provided resolutions, print an error message
-        if all(count == 0 for count in file_counts.values()) and FileManager.find_files.resolutions_provided is not None:
+        # Check if no files were found for the provided resolutions
+        if all(count == 0 for count in [bedfile_count, matrixfile_count, iced_matrixfile_count]) and resolutions_provided is not None:
             print(f"No files found for the provided resolutions: {resolutions_provided}. "
                   f"Resolutions found in the data: {found_resolutions}")
 
-        # If no iced or raw matrix files were found corresponding to the provided command line arg, print error message
-        if SetDirectories.get_normalized_data() and file_counts["iced_matrixfiles"] == 0:
+        # Check if no iced or raw matrix files were found corresponding to the provided command line arg
+        if SetDirectories.get_normalized_data() and iced_matrixfile_count == 0:
             print(f"No ICE-normalized matrix files found, but command line argument -m set to True")
-        elif not SetDirectories.get_normalized_data() and file_counts["matrixfiles"] == 0:
+        elif not SetDirectories.get_normalized_data() and matrixfile_count == 0:
             print(f"No raw matrix files found, but command line argument -m set to False")
 
     @staticmethod
-    def intify_iced_matrix_files(iced_matrixfiles):
+    def int_iced_matrix_files(iced_matrixfiles):
+        """Round floats in ICE-normalized matrix files to integers."""
+        inted_iced_matrixfiles = []
 
-    # ... Logic for rounding floats to integers in ICE-normalized matrix files ...
+        # Create output directory
+        output_dir = os.path.join(SetDirectories.get_temp_dir(), "inted_matrixfiles")
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+        else:
+            shutil.rmtree(output_dir)
+            os.mkdir(output_dir)
+
+        # Round floats to integers
+        for iced_matrixfile in iced_matrixfiles:
+            with open(iced_matrixfile) as f:
+                lines = f.readlines()
+
+                new_lines = []
+                for line in lines:
+                    cols = line.strip().split()
+                    cols[2] = str(round(float(cols[2])))
+                    new_line = '\t'.join(cols) + "\n"
+                    new_lines.append(new_line)
+
+                file_name = os.path.basename(iced_matrixfile)
+
+                # Create the output file path with the same name as the original file
+                output_file_path = os.path.join(output_dir, file_name)
+
+                # Save the modified matrix file to the new directory
+                with open(output_file_path, "w") as f_out:
+                    f_out.writelines(new_lines)
+
+                # Add the output file path to the inted_iced_matrixfiles list
+                inted_iced_matrixfiles.append(output_file_path)
+
+        return inted_iced_matrixfiles
+
+
 
     @staticmethod
     def group_files_by_experiment_and_resolution(matrix_files, bedfiles):

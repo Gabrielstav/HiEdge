@@ -413,7 +413,7 @@ class Pipeline_Input:
 
         # Round floats in ICE-normalized matrix files to integers if using ICE normalization
         if SetDirectories.get_normalized_data():
-            # Create output directory
+            # Create output directorye
             output_dir = os.path.join(SetDirectories.get_temp_dir(), "inted_matrixfiles")
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)

@@ -9,3 +9,6 @@ def make_tmp_dir():
 
 
 def bedpe_string_formatter():
+
+
+def FileNameFormatter():
