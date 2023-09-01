@@ -1,17 +1,37 @@
+# HiC Data Processing Configuration
+# Created by:
+# Date: [Creation/Last Modified Date]
+# Purpose: Configuration settings for processing HiC data.
+
 paths:
-  input_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel/combined"
+  # Directories for input, output, reference data, and scripts
+  input_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel"
   output_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/output"
+  tmp_dir: output_dir + "/tmp"
   reference_dir: "/Users/GBS/Master/Reference"
   nchg_path: "/Users/GBS/Master/Scripts/NCHG_hic/NCHG"
 
 settings:
-  no_split: False
-  normalized_data: None
-  inter_interactions: False
-  intra_interactions: True
-  mixed_interactions: False
-  threads: 8
-  fdr_threshold: 0.05
-  resolutions: 1000000
-  nchg_executor: "multiprocessing"
-  n_quantiles: 100
+
+  # Hi-C Pro settings
+  hicpro_raw_dirname: "raw" # Directory containing raw HiC-Pro matrix output
+  hicpro_norm_dirname: "iced" # Directory containing balanced HiC-Pro matrix output
+
+  # Determine types of chromatin interactions to consider
+  # Only one of these should be set to True at a time
+  inter: False  # Interchromosomal interactions and intrachromosomal
+  intra: True   # Intrachromosomal interactions only
+  mixed: False  # Mixed type of interactions (separate statistical testing for inter and intra)
+
+  # Execution settings
+  threads: 8                # Number of threads to use
+  executor: "multiprocessing"  # Execution mode: "multiprocessing" or "threading"
+  no_split: False             # If true, data won't be split on chromosomes
+  normalized_data: None       # If set, provide normalized data path
+  resolutions: 1000000       # Resolution in base pairs (e.g., 1000000 for 1Mb)
+
+  # Statistical settings
+  fdr_threshold: 0.05        # False Discovery Rate threshold for significance
+  n_quantiles: 100           # Number of quantiles for NCHG
+
+# Add rest of the options later on (log fold, NCHG stuff, chromosomes etc)

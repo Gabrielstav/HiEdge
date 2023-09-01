@@ -5,10 +5,16 @@ from src import setup.config_loader
 import pathlib as pl
 
 def make_tmp_dir():
-    temp_dir = pl.Path(src.setup.config_loader.config["tmp_dir"]),
+    temp_dir = pl.Path(src.setup.config_loader.config["tmp_dir"])
+    pass
 
 
 def bedpe_string_formatter():
-
+    pass
 
 def FileNameFormatter():
+    pass
+
+def pybedtools_tmp():
+    pass
+
