@@ -153,13 +153,6 @@ class FileManager:
             return FileManager.group_files_by_experiment_and_resolution(matrixfiles, bedfiles)
 
 
-# class PipelineInput:
-#
-#     def __init__(self, root_directories: type(pl.Path), raw_directory: type(str) = "raw", iced_directory: type(str) = "iced", resolutions: type(list[int]) = None):
-#         self.root_directories = root_directories
-#         self.raw_directory = raw_directory
-#         self.iced_directory = iced_directory
-#         self.resolutions = resolutions
 
 class PipelineInput:
 
@@ -172,7 +165,7 @@ class PipelineInput:
         self.resolutions: List[int] = resolutions
         self.temp_directory = self._get_or_create_tmp_directory(self.output_directory)
 
-        
+
     def _get_or_create_tmp_directory(self, output_dir: pl.Path) -> pl.Path:
         tmp_dir = output_dir / "tmp"
         tmp_dir.mkdir(parents=True, exist_ok=True)  # creates tmp if it doesn't exist
@@ -225,8 +218,6 @@ class PipelineInput:
             print(f"No files found for the provided resolutions: {self.resolutions}. "
                   f"Resolutions found in the data: {found_resolutions}")
 
-        # If these conditions are based on certain command-line arguments,
-        # make sure to adjust them accordingly in your new structure
         if file_counts["iced_matrixfiles"] == 0:
             print(f"No ICE-normalized matrix files found")
         elif file_counts["matrixfiles"] == 0:
