@@ -43,8 +43,7 @@ class PipelineInput:
         """
         Discovers bed files and matrix files (either raw or iced) based on the normalization setting.
 
-        Returns:
-        - Tuple containing lists of bedfiles and either matrixfiles or iced_matrixfiles.
+        :returns: Tuple of lists of Paths to the bed files and matrix files.
         """
         bedfiles: List[pl.Path] = []
         selected_matrixfiles: List[pl.Path] = []
@@ -84,6 +83,15 @@ class PipelineInput:
         return bedfiles, selected_matrixfiles
 
     def _group_files(self, bedfiles: List[pl.Path], matrixfiles: List[pl.Path]) -> Dict[str, Tuple[pl.Path, pl.Path]]:
+        """
+        Groups bed files and matrix files (either raw or iced) based on the normalization setting.
+
+        :param bedfiles: List of Paths to the bed files.
+        :param matrixfiles: List of Paths to the matrix files.
+
+        :returns: Dictionary with keys of the form (experiment, resolution) and values of the form (bedfile, matrixfile).
+        """
+
         grouped_files: Dict[str, Tuple[pl.Path, pl.Path]] = {}
 
         bedfile_lookup = {}
@@ -112,11 +120,9 @@ class PipelineInput:
         Rounds the float values in ICE-normalized matrix files and saves them in a new directory
         inside the tmp directory. The new files are returned.
 
-        Parameters:
-        - iced_matrixfiles: List of Paths to the ICE-normalized matrix files.
+        :param: List of Paths to the iced matrix files.
 
-        Returns:
-        - List of Paths to the new rounded matrix files.
+        :returns: List of Paths to the rounded iced matrix files.
         """
         inted_iced_matrixfiles = []
 
