@@ -26,7 +26,6 @@ class PipelineInput:
         grouped_files = self._group_files(bedfiles, matrixfiles)
 
         if self.normalized_data_flag:
-            # Create directory for rounded matrix files here
             output_dir = self.tmp_directory / "inted_matrixfiles"
             output_dir.mkdir(exist_ok=True)
 
