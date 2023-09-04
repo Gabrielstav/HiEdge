@@ -30,9 +30,9 @@ class PipelineInput:
             output_dir.mkdir(exist_ok=True)
 
             matrix_files_to_round = [value[1] for value in grouped_files.values()]
-            rounded_matrix_files = self._round_floats_in_iced_files(matrix_files_to_round)  # Use the local variable output_dir
+            rounded_matrix_files = self._round_floats_in_iced_files(matrix_files_to_round)
 
-            # Replace the old matrix files in the grouped_files dict with the inted rounded ones
+            # Replace float matrix files in the grouped_files dict with the inted rounded ones
             for key, (bedfile, _) in grouped_files.items():
                 grouped_files[key] = (bedfile, rounded_matrix_files.pop(0))
 
