@@ -27,7 +27,7 @@ settings:
   threads: 8                # Number of threads to use
   executor: "multiprocessing"  # Execution mode: "multiprocessing" or "threading"
   no_split: False             # If true, data won't be split on chromosomes
-  normalized_data: None       # If set, provide normalized data path
+  normalized_data: False       # If set to true, use balanced matrix files by iterative correction from Hi-C Pro (iced) instead of raw matrix files (raw)
   resolutions: 1000000       # Resolution in base pairs (e.g., 1000000 for 1Mb)
 
   # Statistical settings
