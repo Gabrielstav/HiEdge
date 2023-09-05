@@ -29,7 +29,7 @@ class ConfigLoader:
 
 
 def try_config_loader():
-    config = ConfigLoader("/Users/GBS/PythonProjects/HiEdge/config/config.yaml")
+    config = ConfigLoader("/Users/GBS/PythonProjects/HiEdge/config/default_config.yaml")
 
     # Fetching a few values as an example
     input_dir = config.get_value_by_keys('paths', 'input_dir')

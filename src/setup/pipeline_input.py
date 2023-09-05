@@ -72,7 +72,7 @@ class PipelineInput:
                 filtered_matrix_files, found_resolutions = filter_files_on_resolution(matrix_files, found_resolutions)
                 selected_matrixfiles.extend(filtered_matrix_files)
 
-        # If normalized_data_flag is set, only search in iced subdirectories
+        # If normalized_data_flag, only search in iced subdirectories
         if self.normalized_data_flag:
             for subdirectory_path in iced_subdirectories:
                 iced_matrix_files = list(subdirectory_path.glob('*.matrix'))
@@ -120,7 +120,6 @@ class PipelineInput:
         inside the tmp directory. The new files are returned.
 
         :param: List of Paths to the iced matrix files.
-
         :returns: List of Paths to the rounded iced matrix files.
         """
         inted_iced_matrixfiles = []
