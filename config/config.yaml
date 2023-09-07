@@ -3,35 +3,45 @@
 # Date: [Creation/Last Modified Date]
 # Purpose: Configuration settings for processing HiC data.
 
+version: 1.0
+
 paths:
+
   # Directories for input, output, reference data, and scripts
   input_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel"
   output_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/output"
-  tmp_dir: output_dir + "/tmp"
-  reference_dir: "/Users/GBS/Master/Reference"
-  nchg_path: "/Users/GBS/Master/Scripts/NCHG_hic/NCHG"
+  nchg_path: ""
+
+  # Reference data files
+  blacklist_dir: "/Users/GBS/PythonProjects/HiEdge/reference/hg19-blacklist.v2.bed"
+  cytoband_dir: "/Users/GBS/PythonProjects/HiEdge/reference/cytoBand_hg19.txt"
 
 settings:
 
-  # Hi-C Pro settings
+  # Hi-C Pro file discovery settings
   hicpro_raw_dirname: "raw" # Directory containing raw HiC-Pro matrix output
   hicpro_norm_dirname: "iced" # Directory containing balanced HiC-Pro matrix output
 
   # Determine types of chromatin interactions to consider
   # Only one of these should be set to True at a time
-  inter: False  # Interchromosomal interactions and intrachromosomal
+  inter: False  # Inter- and intrachromosomal interactions
   intra: True   # Intrachromosomal interactions only
   mixed: False  # Mixed type of interactions (separate statistical testing for inter and intra)
 
   # Execution settings
-  threads: 8                # Number of threads to use
+  threads: 8  # Number of threads to use
   executor: "multiprocessing"  # Execution mode: "multiprocessing" or "threading"
-  no_split: False             # If true, data won't be split on chromosomes
-  normalized_data: False       # If set to true, use balanced matrix files by iterative correction from Hi-C Pro (iced) instead of raw matrix files (raw)
-  resolutions: 1000000       # Resolution in base pairs (e.g., 1000000 for 1Mb)
+  no_split: False  # If true, data won't be split on chromosomes
+  normalized_data: False  # If set to true, use balanced matrix files by iterative correction from Hi-C Pro (iced) instead of raw matrix files (raw)
+  resolutions: 1000000  # Resolution in base pairs (e.g., 1000000 for 1Mb)
+
+  # Filtering settings
+  filter_blacklist: True  # If true, filter out interactions in blacklist regions (blacklist file path)
+  filter_cytobands: True  # If true, filter out interactions in cytoband regions (cytobands file path)
 
   # Statistical settings
-  fdr_threshold: 0.05        # False Discovery Rate threshold for significance
-  n_quantiles: 100           # Number of quantiles for NCHG
+  fdr_threshold: 0.05   # False Discovery Rate threshold for significance
+  n_quantiles: 100   # Number of quantiles for NCHG
 
 # Add rest of the options later on (log fold, NCHG stuff, chromosomes etc)
+

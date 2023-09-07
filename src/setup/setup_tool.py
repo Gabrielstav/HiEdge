@@ -6,13 +6,37 @@ import datetime
 import argparse
 from pathlib import Path
 from typing import Optional
+import yaml
 
 class RunDirectorySetup:
+
+    SUBDIRS = ["output", "logs", "tmp", "config"]
 
     def __init__(self, default_config_path: Path):
         self.default_config_path = default_config_path
 
-    def create_run_directory(self, path: Optional[Path] = None, run_name: Optional[str] = None) -> Path:
+    @staticmethod
+    def adjust_config_paths(config_path: Path, run_directory: Path):
+        """
+        Adjust the paths in the configuration file according to the run directory.
+        """
+        try:
+            with config_path.open('r') as file:
+                config = yaml.safe_load(file)
+
+            # Adjust paths
+            for key, value in config['paths'].items():
+                if value.startswith("./"):  # It's a relative path
+                    config['paths'][key] = str(run_directory / Path(value).name)
+
+            with config_path.open('w') as file:
+                yaml.safe_dump(config, file, default_flow_style=False)
+
+        except Exception as e:
+            print(f"Error processing config file: {e}")
+            return
+
+    def create_run_directory(self, path: Optional[Path] = None, run_name: Optional[str] = None) -> Optional[Path]:
         """
         Creates a run directory with a given name at a specified path.
         If no name or path is provided, it uses defaults.
@@ -47,8 +71,11 @@ class RunDirectorySetup:
         config_filename = f"config_{run_name}.yaml"
         shutil.copy(self.default_config_path, config_subdir / config_filename)
 
+        self.adjust_config_paths(config_subdir / config_filename, run_path)
+
         print(f'Run configuration "{run_name}" created in "{run_path}"')
         print(f"You can modify the config file at: {config_subdir / config_filename}")
+
         return run_path
 
 
