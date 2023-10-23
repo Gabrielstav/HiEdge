@@ -33,14 +33,14 @@ settings:
   executor: "multiprocessing"  # Execution mode: "multiprocessing" or "threading"
   no_split: False  # If true, data won't be split on chromosomes
   normalized_data: False  # If set to true, use balanced matrix files by iterative correction from Hi-C Pro (iced) instead of raw matrix files (raw)
-  resolutions: 1000000  # Resolution in base pairs (e.g., 1000000 for 1Mb)
+  resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb)
 
   # Filtering settings
   filter_blacklist: True  # If true, filter out interactions in blacklist regions (blacklist file path)
   filter_cytobands: True  # If true, filter out interactions in cytoband regions (cytobands file path)
 
   # Statistical settings
-  fdr_threshold: 0.05   # False Discovery Rate threshold for significance
+  fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values
   n_quantiles: 100   # Number of quantiles for NCHG
 
 # Add rest of the options later on (log fold, NCHG stuff, chromosomes etc)

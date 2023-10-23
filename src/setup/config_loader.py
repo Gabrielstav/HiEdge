@@ -2,52 +2,52 @@
 
 # Import modules
 import yaml
-
-class ConfigLoader:
-    def __init__(self, configuration_filepath):
-        self.configuration_filepath = configuration_filepath
-        self._loaded_config_data = None
-        self._load_configuration_from_file()
-
-    def _load_configuration_from_file(self):
-        with open(self.configuration_filepath, 'r') as config_file:
-            self._loaded_config_data = yaml.safe_load(config_file)
-
-    def get_value_by_keys(self, *key_path):
-        """Retrieve a configuration value using a key path."""
-        current_data_level = self._loaded_config_data
-        for key in key_path:
-            if key in current_data_level:
-                current_data_level = current_data_level[key]
-            else:
-                return None  # or raise an exception
-        return current_data_level
+from dataclasses import dataclass
+from typing import List
+from pathlib import Path
 
 
+@dataclass(frozen=True)
+class Paths:
+    input_dir: Path
+    output_dir: Path
+    nchg_path: Path
+    blacklist_dir: Path
+    cytoband_dir: Path
+
+@dataclass(frozen=True)
+class Settings:
+    hicpro_raw_dirname: str
+    hicpro_norm_dirname: str
+    inter: bool
+    intra: bool
+    mixed: bool
+    threads: int
+    executor: str
+    no_split: bool
+    normalized_data: bool
+    resolutions: List[int]
+    filter_blacklist: bool
+    filter_cytobands: bool
+    fdr_threshold: float
+    n_quantiles: int
+
+@dataclass(frozen=True)
+class Config:
+    version: float
+    paths: Paths
+    settings: Settings
 
 
+class ConfigMapper:
+    def __init__(self, configuration_path):
+        self.configuration_path = configuration_path
+        self.config_data = self._load_configuration_from_file()
 
-
-def try_config_loader():
-    config = ConfigLoader("/Users/GBS/PythonProjects/HiEdge/config/default_config.yaml")
-
-    # Fetching a few values as an example
-    input_dir = config.get_value_by_keys('paths', 'input_dir')
-    output_dir = config.get_value_by_keys('paths', 'output_dir')
-    threads = config.get_value_by_keys('settings', 'threads')
-    fdr_threshold = config.get_value_by_keys('settings', 'fdr_threshold')
-
-    print(f"Input Directory: {input_dir}")
-    print(f"Output Directory: {output_dir}")
-    print(f"Threads: {threads}")
-    print(f"FDR Threshold: {fdr_threshold}")
-
-    # Testing a non-existent key-path for graceful handling
-    non_existent_value = config.get_value_by_keys('settings', 'non_existent_key')
-    if non_existent_value is None:
-        print("Successfully returned None for a non-existent key path!")
-
-try_config_loader()
+    def _load_configuration_from_file(self) -> Config:
+        with open(self.configuration_path, "r") as config_file:
+            config_data = yaml.safe_load(config_file)
+            return Config(**config_data)
 
 
 

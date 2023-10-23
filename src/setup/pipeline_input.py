@@ -2,19 +2,44 @@
 
 # Import modules
 import re
-import pathlib as pl
+from pathlib import Path
 from typing import List, Set, Tuple, Dict
 from config_loader import ConfigLoader
+from dataclasses import dataclass
 
-class PipelineInput:
+@dataclass
+class configuration:
+    hicpro_input_directory: Path
+    output_directory: Path
+    raw_directory_name: str
+    iced_directory_name: str
+    tmp_directory: Path
+    resolutions: List[int]
+    normalized_data_flag: bool
+
+class file_finder:
+    pass
+
+class file_grouper:
+    pass
+
+class iced_rounder_intifier:
+    pass
+
+
+
+class PipelineInputFromHiCPro:
+
+    # Refactor to use dataclass instead ?
+    # This would be better because we can use this as type hinting for the return type of the prepare_input_files method instead of the Dict[str, Tuple[Path, Path]] ?
 
     def __init__(self, config_loader: ConfigLoader, resolutions: List[int] = None):
         self.config_loader = config_loader
-        self.input_directory: pl.Path = pl.Path(config_loader.get_value_by_keys("paths", "input_dir"))
-        self.output_directory: pl.Path = pl.Path(config_loader.get_value_by_keys("paths", "output_dir"))
-        self.raw_directory: str = config_loader.get_value_by_keys("settings", "hicpro_raw_dirname")
-        self.iced_directory: str = config_loader.get_value_by_keys("settings", "hicpro_iced_dirname")
-        self.tmp_directory: pl.Path = pl.Path(config_loader.get_value_by_keys("paths", "tmp_dir"))
+        self.input_directory: Path = Path(config_loader.get_value_by_keys("paths", "input_dir"))
+        self.output_directory: Path = Path(config_loader.get_value_by_keys("paths", "output_dir"))
+        self.raw_directory_name: str = config_loader.get_value_by_keys("settings", "hicpro_raw_dirname")
+        self.iced_directory_name: str = config_loader.get_value_by_keys("settings", "hicpro_iced_dirname")
+        self.tmp_directory: Path = Path(config_loader.get_value_by_keys("paths", "tmp_dir"))
         self.resolutions: List[int] = resolutions
         self.normalized_data_flag: bool = config_loader.get_value_by_keys("settings", "normalized_data")
 
@@ -38,17 +63,17 @@ class PipelineInput:
 
         return grouped_files
 
-    def _find_files(self) -> Tuple[List[pl.Path], List[pl.Path]]:
+    def _find_files(self) -> Tuple[List[Path], List[Path]]:
         """
         Discovers bed files and matrix files (either raw or iced) based on the normalization setting.
 
         :returns: Tuple of lists of Paths to the bed files and matrix files.
         """
-        bedfiles: List[pl.Path] = []
-        selected_matrixfiles: List[pl.Path] = []
+        bedfiles: List[Path] = []
+        selected_matrixfiles: List[Path] = []
 
-        def filter_files_on_resolution(input_files: List[pl.Path], found_resolutions_in: Set[int]) -> Tuple[List[pl.Path], Set[int]]:
-            filtered_files: List[pl.Path] = []
+        def filter_files_on_resolution(input_files: List[Path], found_resolutions_in: Set[int]) -> Tuple[List[Path], Set[int]]:
+            filtered_files: List[Path] = []
             for file_path in input_files:
                 resolution_match = re.search(r'_(\d+)[_.]', file_path.name)
                 if resolution_match:
@@ -59,8 +84,8 @@ class PipelineInput:
             return filtered_files, found_resolutions_in
 
         found_resolutions: Set[int] = set()
-        raw_subdirectories: List[pl.Path] = [path for path in self.input_directory.rglob(self.raw_directory) if path.is_dir()]
-        iced_subdirectories: List[pl.Path] = [path for path in self.input_directory.rglob(self.iced_directory) if path.is_dir()]
+        raw_subdirectories: List[Path] = [path for path in self.input_directory.rglob(self.raw_directory) if path.is_dir()]
+        iced_subdirectories: List[Path] = [path for path in self.input_directory.rglob(self.iced_directory) if path.is_dir()]
 
         # Search for bed and matrix files in raw subdirectories
         for subdirectory_path in raw_subdirectories:
@@ -81,17 +106,16 @@ class PipelineInput:
 
         return bedfiles, selected_matrixfiles
 
-    def _group_files(self, bedfiles: List[pl.Path], matrixfiles: List[pl.Path]) -> Dict[str, Tuple[pl.Path, pl.Path]]:
+    def _group_files(self, bedfiles: List[Path], matrixfiles: List[Path]) -> Dict[str, Tuple[Path, Path]]:
         """
         Groups bed files and matrix files (either raw or iced) based on the normalization setting.
 
         :param bedfiles: List of Paths to the bed files.
         :param matrixfiles: List of Paths to the matrix files.
-
         :returns: Dictionary with keys of the form (experiment, resolution) and values of the form (bedfile, matrixfile).
         """
 
-        grouped_files: Dict[str, Tuple[pl.Path, pl.Path]] = {}
+        grouped_files: Dict[str, Tuple[Path, Path]] = {}
 
         bedfile_lookup = {}
         for bedfile in bedfiles:
@@ -114,7 +138,7 @@ class PipelineInput:
 
         return grouped_files
 
-    def _round_floats_in_iced_files(self, iced_matrixfiles: List[pl.Path]) -> List[pl.Path]:
+    def _round_floats_in_iced_files(self, iced_matrixfiles: List[Path]) -> List[Path]:
         """
         Rounds the float values in ICE-normalized matrix files and saves them in a new directory
         inside the tmp directory. The new files are returned.

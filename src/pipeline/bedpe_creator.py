@@ -1,7 +1,61 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
-import pathlib as pl
+from pathlib import Path
+from typing import Dict, Set, Tuple
+from src.setup.config_loader import ConfigLoader
+
+
+# Use numpy and pandas, and also validation format (abstract validation, or use dataclass?)
+# Then validate data between each step, and do transformtions on dataframes or matrices
+# This means might not have to save to file, might be faster, but too memeory intensive, so look into using generators to process data in chunks
+# Then implement the stat model using numpy and pandas, and then use generators to process data in chunks as well,
+# and look into how this integrates with Cpython, multiprocessing and the GIL
+#
+
+class parse_paths:
+    pass
+
+class file_formatting:
+    pass
+
+class make_bedpe:
+    pass
+
+class validate_bedpe:
+    pass
+
+
+
+class bedpe_creator:
+
+    # Just use dataclass instead ?
+
+    def __init__(self, config_loader: ConfigLoader):
+        self.config_loader = config_loader
+        self.grouped_files: Dict[str, Tuple[Path, Path]] = {} # Grouped on resolution as key and tuple of bed and matrix files as value
+        self.output_directory: Path = Path(config_loader.get_value_by_keys("paths", "output_dir"))
+        self.tmp_directory: Path = Path(config_loader.get_value_by_keys("paths", "tmp_dir"))
+
+    def make_bedpe(self, grouped_files: Dict[str, Tuple[Path, Path]]):
+        """
+        Makes bedpe file from HiC-Pro output
+        :param bed_file: BED file from HiC-Pro output grouped by src.setup.pipeline_input.group_files()
+        :param matrix_file: Matrix file from HiC-Pro output grouped by src.setup.pipeline_input.group_files()
+        :return: BEDPE file saved to temp directory, containing matrix and BED data
+        """
+        # Main public method to make BEDPE files
+        bedpe_creator._parse_paths(self.grouped_files)
+        bedpe_creator._file_formatting(self.grouped_files)
+        bedpe_creator._make_bedpe(self.grouped_files)
+
+    def _parse_paths(self):
+
+
+
+    def _file_formatting(self):
+        pass
+
 
 class BEDPE_Creator:
 
