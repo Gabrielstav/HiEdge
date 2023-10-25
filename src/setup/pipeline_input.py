@@ -3,59 +3,26 @@
 # Import modules
 import re
 from pathlib import Path
-from typing import List, Set, Tuple, Dict
-from config_loader import ConfigLoader
+from typing import List, Set, Tuple, Dict, Iterable, Optional
+from config_loader import Config
 from dataclasses import dataclass
 
-@dataclass
-class configuration:
-    hicpro_input_directory: Path
-    output_directory: Path
-    raw_directory_name: str
-    iced_directory_name: str
-    tmp_directory: Path
-    resolutions: List[int]
-    normalized_data_flag: bool
 
-class file_finder:
-    pass
+class HicProInputFilePreparer:
 
-class file_grouper:
-    pass
+    def __init__(self, config: Config):
+        self.config = config
+        self.file_finder = FileFinder(config)
+        self.file_grouper = HicProFileGrouper(config)
+        self.matrix_rounder = IcedMatrixRounder(config)
 
-class iced_rounder_intifier:
-    pass
+    def prepare_input_files(self) -> Dict[Tuple[str, int], Tuple[Path, Path]]:
+        bedfiles, matrixfiles = self.file_finder.find_hicpro_bed_matrix_files()
+        grouped_files = self.file_grouper.group_files(bedfiles, matrixfiles)
 
-
-
-class PipelineInputFromHiCPro:
-
-    # Refactor to use dataclass instead ?
-    # This would be better because we can use this as type hinting for the return type of the prepare_input_files method instead of the Dict[str, Tuple[Path, Path]] ?
-
-    def __init__(self, config_loader: ConfigLoader, resolutions: List[int] = None):
-        self.config_loader = config_loader
-        self.input_directory: Path = Path(config_loader.get_value_by_keys("paths", "input_dir"))
-        self.output_directory: Path = Path(config_loader.get_value_by_keys("paths", "output_dir"))
-        self.raw_directory_name: str = config_loader.get_value_by_keys("settings", "hicpro_raw_dirname")
-        self.iced_directory_name: str = config_loader.get_value_by_keys("settings", "hicpro_iced_dirname")
-        self.tmp_directory: Path = Path(config_loader.get_value_by_keys("paths", "tmp_dir"))
-        self.resolutions: List[int] = resolutions
-        self.normalized_data_flag: bool = config_loader.get_value_by_keys("settings", "normalized_data")
-
-    def prepare_input_files(self):
-        """
-        Main public method to prepare input files for the pipeline.
-        """
-        bedfiles, matrixfiles = self._find_files()
-        grouped_files = self._group_files(bedfiles, matrixfiles)
-
-        if self.normalized_data_flag:
-            output_dir = self.tmp_directory / "inted_matrixfiles"
-            output_dir.mkdir(exist_ok=True)
-
+        if self.config.settings.normalized_data:
             matrix_files_to_round = [value[1] for value in grouped_files.values()]
-            rounded_matrix_files = self._round_floats_in_iced_files(matrix_files_to_round)
+            rounded_matrix_files = self.matrix_rounder.round_floats_in_iced_files(matrix_files_to_round)
 
             # Replace float matrix files in the grouped_files dict with the inted rounded ones
             for key, (bedfile, _) in grouped_files.items():
@@ -63,85 +30,107 @@ class PipelineInputFromHiCPro:
 
         return grouped_files
 
-    def _find_files(self) -> Tuple[List[Path], List[Path]]:
+class FileFinder:
+
+    def __init__(self, config: Config):
+        self.config = config
+        self.resolutions: Optional[List[Path]] = None
+
+    def find_hicpro_bed_matrix_files(self) -> Tuple[List[Path], List[Path]]:
         """
         Discovers bed files and matrix files (either raw or iced) based on the normalization setting.
-
         :returns: Tuple of lists of Paths to the bed files and matrix files.
         """
-        bedfiles: List[Path] = []
-        selected_matrixfiles: List[Path] = []
-
-        def filter_files_on_resolution(input_files: List[Path], found_resolutions_in: Set[int]) -> Tuple[List[Path], Set[int]]:
-            filtered_files: List[Path] = []
-            for file_path in input_files:
-                resolution_match = re.search(r'_(\d+)[_.]', file_path.name)
-                if resolution_match:
-                    resolution = int(resolution_match.group(1))
-                    if self.resolutions is None or resolution in self.resolutions:
-                        filtered_files.append(file_path)
-                    found_resolutions_in.add(resolution)
-            return filtered_files, found_resolutions_in
-
+        bed_files: List[Path] = []
+        selected_matrix_files: List[Path] = []
         found_resolutions: Set[int] = set()
-        raw_subdirectories: List[Path] = [path for path in self.input_directory.rglob(self.raw_directory) if path.is_dir()]
-        iced_subdirectories: List[Path] = [path for path in self.input_directory.rglob(self.iced_directory) if path.is_dir()]
+
+        raw_subdirectories = self._find_subdirectories(self.config.settings.hicpro_raw_dirname)
+        iced_subdirectories = self._find_subdirectories(self.config.settings.hicpro_norm_dirname)
 
         # Search for bed and matrix files in raw subdirectories
-        for subdirectory_path in raw_subdirectories:
-            bed_files = list(subdirectory_path.glob('*.bed'))
-            matrix_files = list(subdirectory_path.glob('*.matrix'))
-            filtered_bed_files, found_resolutions = filter_files_on_resolution(bed_files, found_resolutions)
-            bedfiles.extend(filtered_bed_files)
-            if not self.normalized_data_flag:
-                filtered_matrix_files, found_resolutions = filter_files_on_resolution(matrix_files, found_resolutions)
-                selected_matrixfiles.extend(filtered_matrix_files)
+        for subdir in raw_subdirectories:
+            found_bed_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.bed'), found_resolutions)
+            bed_files.extend(found_bed_files)
+
+            if not self.config.settings.normalized_data:
+                found_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.matrix'), found_resolutions)
+                selected_matrix_files.extend(found_matrix_files)
 
         # If normalized_data_flag, only search in iced subdirectories
-        if self.normalized_data_flag:
-            for subdirectory_path in iced_subdirectories:
-                iced_matrix_files = list(subdirectory_path.glob('*.matrix'))
-                filtered_iced_matrix_files, found_resolutions = filter_files_on_resolution(iced_matrix_files, found_resolutions)
-                selected_matrixfiles.extend(filtered_iced_matrix_files)
+        if self.config.settings.normalized_data:
+            for subdir in iced_subdirectories:
+                found_iced_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.matrix'), found_resolutions)
+                selected_matrix_files.extend(found_iced_matrix_files)
 
-        return bedfiles, selected_matrixfiles
+        return bed_files, selected_matrix_files
 
-    def _group_files(self, bedfiles: List[Path], matrixfiles: List[Path]) -> Dict[str, Tuple[Path, Path]]:
+    def _find_subdirectories(self, dirname: str) -> List[Path]:
+        return [path for path in self.config.paths.input_dir.rglob(dirname) if path.is_dir()]
+
+    def _filter_files_on_resolution(self, input_files: Iterable[Path], found_resolutions: Set[int] = set()) -> Tuple[List[Path], Set[int]]:
         """
-        Groups bed files and matrix files (either raw or iced) based on the normalization setting.
+        Filters input files based on their resolution.
+
+        :returns: Tuple of filtered Paths and the set of found resolutions.
+        """
+        filtered_files: List[Path] = []
+        for file_path in input_files:
+            resolution_match = re.search(r'_(\d+)[_.]', file_path.name)
+            if resolution_match:
+                resolution = int(resolution_match.group(1))
+                if self.resolutions is None or resolution in self.resolutions:
+                    filtered_files.append(file_path)
+                found_resolutions.add(resolution)
+        return filtered_files, found_resolutions
+
+
+class HicProFileGrouper:
+
+    def __init__(self, config: Config):
+        self.config = config
+
+    def group_files(self, bedfiles: List[Path], matrixfiles: List[Path]) -> Dict[Tuple[str, int], Tuple[Path, Path]]:
+        """
+        Groups bed files and matrix files based on the normalization setting.
 
         :param bedfiles: List of Paths to the bed files.
         :param matrixfiles: List of Paths to the matrix files.
         :returns: Dictionary with keys of the form (experiment, resolution) and values of the form (bedfile, matrixfile).
         """
 
-        grouped_files: Dict[str, Tuple[Path, Path]] = {}
-
-        bedfile_lookup = {}
-        for bedfile in bedfiles:
-            if self.normalized_data_flag:
-                bedfile_experiment, bedfile_resolution, _ = bedfile.stem.rsplit("_", 2)
-                bedfile_resolution = int(bedfile_resolution)
-                key = (bedfile_experiment, bedfile_resolution)
+        def extract_metadata_from_file(file: Path) -> Tuple[str, int]:
+            """
+            Extracts the experiment and resolution from a given file based on its name and path.
+            """
+            if self.config.settings.normalized_data:
+                experiment, resolution, _ = file.stem.rsplit("_", 2)
+                resolution = int(resolution)
             else:
-                key = bedfile.stem
-            bedfile_lookup[key] = bedfile
+                experiment = file.parents[2].name
+                resolution = int(file.stem.rsplit("_", 2)[1])
+            return experiment, resolution
+
+        grouped_files: Dict[Tuple[str, int], Tuple[Path, Path]] = {}
+
+        bedfile_lookup = {extract_metadata_from_file(bedfile): bedfile for bedfile in bedfiles}
 
         for matrixfile in matrixfiles:
-            # Check if using iced matrix files or raw matrix files
-            resolution = matrixfile.parent.name if not self.normalized_data_flag else matrixfile.stem.rsplit("_", 2)[1]
-            experiment = matrixfile.parents[2].name if not self.normalized_data_flag else matrixfile.stem.rsplit("_", 2)[0]
-
-            key = (experiment, int(resolution)) if self.normalized_data_flag else experiment
+            key = extract_metadata_from_file(matrixfile)
             if key in bedfile_lookup:
-                grouped_files[f"{experiment, resolution}"] = (bedfile_lookup[key], matrixfile)
+                grouped_files[key] = (bedfile_lookup[key], matrixfile)
 
         return grouped_files
 
-    def _round_floats_in_iced_files(self, iced_matrixfiles: List[Path]) -> List[Path]:
+class IcedMatrixRounder:
+
+    def __init__(self, config: Config):
+        self.config = config
+
+    def round_floats_in_iced_files(self, iced_matrixfiles: List[Path]) -> List[Path]:
         """
         Rounds the float values in ICE-normalized matrix files and saves them in a new directory
-        inside the tmp directory. The new files are returned.
+        inside the output directory. The new files are returned.
 
         :param: List of Paths to the iced matrix files.
         :returns: List of Paths to the rounded iced matrix files.
@@ -149,19 +138,19 @@ class PipelineInputFromHiCPro:
         inted_iced_matrixfiles = []
 
         for iced_matrixfile in iced_matrixfiles:
-            with open(iced_matrixfile, 'r') as f:
-                new_lines = [
-                    "\t".join([cols[0], cols[1], str(round(float(cols[2])))]) + "\n"
-                    for cols in (line.strip().split() for line in f)
-                ]
+            output_file_path = self.config.paths.output_dir / iced_matrixfile.name
 
-            output_file_path = self.output_directory / iced_matrixfile.name
+            if output_file_path.exists():
+                # Handle existing file, e.g., skip, overwrite, or rename
+                continue
 
-            with open(output_file_path, "w") as f_out:
-                f_out.writelines(new_lines)
+            with open(iced_matrixfile, 'r') as f_in, open(output_file_path, "w") as f_out:
+                for line in f_in:
+                    cols = line.strip().split()
+                    rounded_value = round(float(cols[2]))
+                    f_out.write("\t".join([cols[0], cols[1], str(rounded_value)]) + "\n")
 
             inted_iced_matrixfiles.append(output_file_path)
 
         return inted_iced_matrixfiles
-
 
