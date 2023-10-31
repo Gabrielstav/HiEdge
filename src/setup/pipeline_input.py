@@ -5,7 +5,6 @@ import re
 from pathlib import Path
 from typing import List, Set, Tuple, Dict, Iterable, Optional
 from config_loader import Config
-from dataclasses import dataclass
 
 
 class HicProInputFilePreparer:
@@ -20,7 +19,7 @@ class HicProInputFilePreparer:
         bedfiles, matrixfiles = self.file_finder.find_hicpro_bed_matrix_files()
         grouped_files = self.file_grouper.group_files(bedfiles, matrixfiles)
 
-        if self.config.settings.normalized_data:
+        if self.config.pipeline_settings.normalized_data:
             matrix_files_to_round = [value[1] for value in grouped_files.values()]
             rounded_matrix_files = self.matrix_rounder.round_floats_in_iced_files(matrix_files_to_round)
 
@@ -45,20 +44,20 @@ class FileFinder:
         selected_matrix_files: List[Path] = []
         found_resolutions: Set[int] = set()
 
-        raw_subdirectories = self._find_subdirectories(self.config.settings.hicpro_raw_dirname)
-        iced_subdirectories = self._find_subdirectories(self.config.settings.hicpro_norm_dirname)
+        raw_subdirectories = self._find_subdirectories(self.config.pipeline_settings.hicpro_raw_dirname)
+        iced_subdirectories = self._find_subdirectories(self.config.pipeline_settings.hicpro_norm_dirname)
 
         # Search for bed and matrix files in raw subdirectories
         for subdir in raw_subdirectories:
             found_bed_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.bed'), found_resolutions)
             bed_files.extend(found_bed_files)
 
-            if not self.config.settings.normalized_data:
+            if not self.config.pipeline_settings.normalized_data:
                 found_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.matrix'), found_resolutions)
                 selected_matrix_files.extend(found_matrix_files)
 
         # If normalized_data_flag, only search in iced subdirectories
-        if self.config.settings.normalized_data:
+        if self.config.pipeline_settings.normalized_data:
             for subdir in iced_subdirectories:
                 found_iced_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.matrix'), found_resolutions)
                 selected_matrix_files.extend(found_iced_matrix_files)
@@ -68,12 +67,14 @@ class FileFinder:
     def _find_subdirectories(self, dirname: str) -> List[Path]:
         return [path for path in self.config.paths.input_dir.rglob(dirname) if path.is_dir()]
 
-    def _filter_files_on_resolution(self, input_files: Iterable[Path], found_resolutions: Set[int] = set()) -> Tuple[List[Path], Set[int]]:
+    def _filter_files_on_resolution(self, input_files: Iterable[Path], found_resolutions=None) -> Tuple[List[Path], Set[int]]:
         """
         Filters input files based on their resolution.
 
         :returns: Tuple of filtered Paths and the set of found resolutions.
         """
+        if found_resolutions is None:
+            found_resolutions = set()
         filtered_files: List[Path] = []
         for file_path in input_files:
             resolution_match = re.search(r'_(\d+)[_.]', file_path.name)
@@ -103,7 +104,7 @@ class HicProFileGrouper:
             """
             Extracts the experiment and resolution from a given file based on its name and path.
             """
-            if self.config.settings.normalized_data:
+            if self.config.pipeline_settings.normalized_data:
                 experiment, resolution, _ = file.stem.rsplit("_", 2)
                 resolution = int(resolution)
             else:
@@ -153,4 +154,3 @@ class IcedMatrixRounder:
             inted_iced_matrixfiles.append(output_file_path)
 
         return inted_iced_matrixfiles
-

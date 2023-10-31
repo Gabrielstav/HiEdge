@@ -2,133 +2,50 @@
 
 # Import modules
 from pathlib import Path
-from typing import Dict, Set, Tuple
-from src.setup.config_loader import ConfigLoader
+from src.setup.config_loader import ConfigMapper as Config
+import pandas as pd
+import dask.dataframe as dd
+
+class BedpeCreator:
+
+    def __init__(self, config: Config, matrix_file: Path, bed_file: Path):
+        self.config = config
+        self.bed_file = bed_file
+        self.matrix_file = matrix_file
+        # might need config later for filtering
 
 
-# Use numpy and pandas, and also validation format (abstract validation, or use dataclass?)
-# Then validate data between each step, and do transformtions on dataframes or matrices
-# This means might not have to save to file, might be faster, but too memeory intensive, so look into using generators to process data in chunks
-# Then implement the stat model using numpy and pandas, and then use generators to process data in chunks as well,
-# and look into how this integrates with Cpython, multiprocessing and the GIL
-#
-
-class parse_paths:
-    pass
-
-class file_formatting:
-    pass
-
-class make_bedpe:
-    pass
-
-class validate_bedpe:
-    pass
-
-
-
-class bedpe_creator:
-
-    # Just use dataclass instead ?
-
-    def __init__(self, config_loader: ConfigLoader):
-        self.config_loader = config_loader
-        self.grouped_files: Dict[str, Tuple[Path, Path]] = {} # Grouped on resolution as key and tuple of bed and matrix files as value
-        self.output_directory: Path = Path(config_loader.get_value_by_keys("paths", "output_dir"))
-        self.tmp_directory: Path = Path(config_loader.get_value_by_keys("paths", "tmp_dir"))
-
-    def make_bedpe(self, grouped_files: Dict[str, Tuple[Path, Path]]):
+    def make_bedpe_pandas(self, matrix_file: Path, bed_file: Path) -> pd.DataFrame:
         """
-        Makes bedpe file from HiC-Pro output
-        :param bed_file: BED file from HiC-Pro output grouped by src.setup.pipeline_input.group_files()
-        :param matrix_file: Matrix file from HiC-Pro output grouped by src.setup.pipeline_input.group_files()
-        :return: BEDPE file saved to temp directory, containing matrix and BED data
-        """
-        # Main public method to make BEDPE files
-        bedpe_creator._parse_paths(self.grouped_files)
-        bedpe_creator._file_formatting(self.grouped_files)
-        bedpe_creator._make_bedpe(self.grouped_files)
-
-    def _parse_paths(self):
-
-
-
-    def _file_formatting(self):
-        pass
-
-
-class BEDPE_Creator:
-
-    @staticmethod
-    def make_bedpe(bed_file, matrix_file):
-        """
-        Makes bedpe file from HiC-Pro output
+        Use Pandas to make BEDPE files
+        :param matrix_file: Matrix file from HiC-Pro grouped by HicProInputFilePreparer in pipeline_input
+        :param bed_file: Bed file from HiC-Pro grouped by HicProInputFilePreparer in pipeline_input
+        :return: BEDPE dataframe made from matrix and bed files
         """
 
-        try:
-            bedpe = []
+        bed_df = pd.read_csv(bed_file, sep="\t", header=None, names=["chr", "start", "end", "idx"])
+        matrix_df = pd.read_csv(matrix_file, sep="\t", header=None, names=["id1", "id2", "interaction_count"])
 
-            bed_lines = open(bed_file, "r").readlines()
-            matrix_lines = open(matrix_file, "r").readlines()
+        merged_df = matrix_df.merge(bed_df, left_on="id1", right_on="idx", how="left") \
+            .merge(bed_df, left_on="id2", right_on="idx", how="left", suffixes=("", "_2"))
 
-            bed_dict = {}
-            for line in bed_lines:
-                line = line.strip().split("\t")
-                bed_dict[line[3]] = line
-            for line in matrix_lines:
-                line = line.strip().split("\t")
-                bedpe.append(f"{bed_dict[line[0]][0]}"
-                             f"\t{bed_dict[line[0]][1]}"
-                             f"\t{bed_dict[line[0]][2]}"
-                             f"\t{bed_dict[line[1]][0]}"
-                             f"\t{bed_dict[line[1]][1]}"
-                             f"\t{bed_dict[line[1]][2]}"
-                             f"\t{line[2]}\n")
-            return bedpe
+        bedpe_df = merged_df[["chr_1", "start_1", "end", "chr_2", "start_2", "end_2", "interaction_count"]]
 
-        except Exception as e:
-            tid = threading.get_ident()
-            print(f"Error processing file: {bed_file, matrix_file}, {e}, PID: {os.getpid()}, TID: {tid}")
-            raise
+        return bedpe_df
 
-
-    @staticmethod
-    def input_to_make_bedpe(grouped_files):
+    def make_bedpe_dask(self, matrix_file: Path, bed_file: Path) -> dd.DataFrame:
         """
-        Makes bedpe files from HiC-Pro output and saves them to the temp directory
-        :param grouped_files: Output of Pipeline_Input.group_files()
-        :return: BEDPE files saved to temp directory
+        Use Dask to make BEDPE files
+        :param matrix_file: Matrix file from HiC-Pro
+        :param bed_file: Bed file from HiC-Pro
+        :return: BEDPE dataframe made from matrix and bed files
         """
 
-        global first_print
-        first_print = True
+        bed_ddf = dd.read_csv(bed_file, sep="\t", header=None, names=["chr", "start", "end", "idx"])
+        matrix_ddf = dd.read_csv(matrix_file, sep="\t", header=None, names=["id1", "id2", "interaction_count"])
 
-        os.chdir(SetDirectories.get_temp_dir())
-        if not os.path.exists("bedpe"):
-            os.mkdir("bedpe")
-        else:
-            shutil.rmtree("bedpe")
-            os.mkdir("bedpe")
-        os.chdir("bedpe")
+        merged_ddf = matrix_ddf.merge(bed_ddf, left_on="id1", right_on="idx", how="left") \
+            .merge(bed_ddf, left_on="id2", right_on="idx", how="left", suffixes=("_1", "_2"))
 
-        for key, val in grouped_files.items():
-
-            split_key = key.split(",")
-            experiment = split_key[0].replace("'", "").replace("(", "").replace(")", "").replace(" ", "_")
-            resolution = split_key[1].replace("'", "").replace("(", "").replace(")", "").replace(" ", "_")
-            # Remove trailing underscore or space
-            if experiment[-1] in ("_", " "):
-                experiment = experiment[:-1]
-            if resolution[-1] in ("_", " "):
-                resolution = resolution[:-1]
-            # Replace consecutive underscores with a single underscore
-            experiment = '_'.join(filter(None, experiment.split('_')))
-            resolution = '_'.join(filter(None, resolution.split('_')))
-
-            bedfile = val[0]
-            matrixfile = val[1]
-            bedpe = Pipeline.make_bedpe(bedfile, matrixfile)
-
-            with open(experiment + "_" + resolution + ".bedpe", "w") as f:
-                f.writelines(bedpe)
-                f.close()
+        bedpe_ddf = merged_ddf[["chr_1", "start_1", "end_1", "chr_2", "start_2", "end_2", "interaction_count"]]
+        return bedpe_ddf

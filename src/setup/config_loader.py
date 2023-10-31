@@ -16,7 +16,7 @@ class Paths:
     cytoband_dir: Path
 
 @dataclass(frozen=True)
-class Settings:
+class PipelineSettings:
     hicpro_raw_dirname: str
     hicpro_norm_dirname: str
     inter: bool
@@ -33,10 +33,23 @@ class Settings:
     n_quantiles: int
 
 @dataclass(frozen=True)
+class DaskSettings:
+    chunksize: int
+    work_stealing: bool
+    default: str
+    target: float
+    spill: float
+    pause: float
+    terminate: float
+    no_termination: bool
+
+
+@dataclass(frozen=True)
 class Config:
     version: float
     paths: Paths
-    settings: Settings
+    pipeline_settings: PipelineSettings
+    dask_settings: DaskSettings
 
 
 class ConfigMapper:

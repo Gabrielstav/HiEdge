@@ -16,7 +16,7 @@ paths:
   blacklist_dir: "/Users/GBS/PythonProjects/HiEdge/reference/hg19-blacklist.v2.bed"
   cytoband_dir: "/Users/GBS/PythonProjects/HiEdge/reference/cytoBand_hg19.txt"
 
-settings:
+pipeline_settings:
 
   # Hi-C Pro file discovery settings
   hicpro_raw_dirname: "raw" # Directory containing raw HiC-Pro matrix output
@@ -42,6 +42,22 @@ settings:
   # Statistical settings
   fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values
   n_quantiles: 100   # Number of quantiles for NCHG
+
+dask_settings:
+
+  # Dataframe
+  chunksize: 50000  # Default chunk size for dataframes
+
+  # Scheduler
+  work-stealing: True
+  default: 'threads'  # or 'processes' or 'distributed'
+
+  # Memory
+  target: 0.9  # fraction of memory to try to stay beneath
+  spill: 0.95  # fraction at which we start spilling to disk
+  pause: 0.98  # fraction at which we halt computation and warn
+  terminate: 1.0  # fraction at which we kill the worker
+  no_termination: True
 
 # Add rest of the options later on (log fold, NCHG stuff, chromosomes etc)
 
