@@ -1,6 +1,44 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
+from src.setup.config_loader import ConfigMapper as Config
+import pandas as pd
+import pybedtools as pbt
+from pathlib import Path
+import dask.dataframe as dd
+
+class RemoveBlacklistedRegions:
+
+    def __init__(self, config: Config, bedpe_df: pd.DataFrame, window_size: int, blacklisted_regions: Path):
+        self.config = config
+        self.window_size = window_size
+        self.bedpe_file = bedpe_df
+        self.blacklisted_regions = blacklisted_regions
+
+    def _read_blacklist_regions(self, blacklisted_regions: Path):
+
+    def _infer_window_size(self, bedpe_df: pd.DataFrame):
+        pass
+
+    def convert_df_to_pbt(self, bedpe_df: pd.DataFrame):
+        pass
+
+    def filter_blacklist(self, bedpe_df: pd.DataFrame, window_size: int) -> pd.DataFrame:
+        pass
+
+    def filter_chunk_with_pybedtools(self, chunk_df, window_size, blacklist_path):
+        pass
+
+    def remove_blacklisted_regions_dask(self, bedpe_ddf: dd.DataFrame, window_size: int, blacklist_path: str) -> dd.DataFrame:
+        pass
+
+
+
+
+
+
+
+
 
 
 class blacklist_filter:

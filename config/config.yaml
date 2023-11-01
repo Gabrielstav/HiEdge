@@ -18,6 +18,9 @@ paths:
 
 pipeline_settings:
 
+  # Reference genome
+  refernce_genome: "hg19" # Reference genome used in hic pro (hg19 or hg38)
+
   # Hi-C Pro file discovery settings
   hicpro_raw_dirname: "raw" # Directory containing raw HiC-Pro matrix output
   hicpro_norm_dirname: "iced" # Directory containing balanced HiC-Pro matrix output
@@ -38,6 +41,13 @@ pipeline_settings:
   # Filtering settings
   filter_blacklist: True  # If true, filter out interactions in blacklist regions (blacklist file path)
   filter_cytobands: True  # If true, filter out interactions in cytoband regions (cytobands file path)
+  remove_chromosomes: ["chr2", "chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from pipeline. Empty list means no chromosomes are selected.
+  select_chromosomes: [] # List of strings of chromosome(s) to include in pipeline, if none all included, all chromosomes not selected are omitted. Empty list means no speciic chromosomes are selected.
+  select_regions:
+    chr1: "0-1000, 20000-3500000, 1-10"
+  omit_regions:
+    chrx: "100-200"
+
 
   # Statistical settings
   fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values

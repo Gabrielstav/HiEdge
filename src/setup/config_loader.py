@@ -3,9 +3,12 @@
 # Import modules
 import yaml
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict, NamedTuple
 from pathlib import Path
 
+class GenomicRange(NamedTuple):
+    start: int
+    end: int
 
 @dataclass(frozen=True)
 class Paths:
@@ -17,6 +20,7 @@ class Paths:
 
 @dataclass(frozen=True)
 class PipelineSettings:
+    reference_genome: str
     hicpro_raw_dirname: str
     hicpro_norm_dirname: str
     inter: bool
@@ -29,8 +33,26 @@ class PipelineSettings:
     resolutions: List[int]
     filter_blacklist: bool
     filter_cytobands: bool
+    select_chromosomes: List[str]
+    select_regions: Dict[str, List[GenomicRange]]
+    omit_regions: Dict[str, List[GenomicRange]]
     fdr_threshold: float
     n_quantiles: int
+
+    def __post_init__(self):
+        object.__setattr__(self, 'select_regions', self._parse_ranges(self.select_regions))
+        object.__setattr__(self, 'omit_regions', self._parse_ranges(self.omit_regions))
+
+    @staticmethod
+    def _parse_ranges(ranges_dict):
+        parsed = {}
+        for chrom, ranges in ranges_dict.items():
+            range_list = []
+            for rg in ranges.split(','):
+                start, end = map(int, rg.split('-'))
+                range_list.append(GenomicRange(start, end))
+            parsed[chrom] = range_list
+        return parsed
 
 @dataclass(frozen=True)
 class DaskSettings:
