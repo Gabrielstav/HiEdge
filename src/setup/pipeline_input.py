@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from typing import List, Set, Tuple, Dict, Iterable, Optional
 from config_loader import Config
+from data_structures import GroupedFiles, Metadata
 
 
 class HicProInputFilePreparer:
@@ -15,17 +16,17 @@ class HicProInputFilePreparer:
         self.file_grouper = HicProFileGrouper(config)
         self.matrix_rounder = IcedMatrixRounder(config)
 
-    def prepare_input_files(self) -> Dict[Tuple[str, int], Tuple[Path, Path]]:
+    def prepare_input_files(self) -> List[GroupedFiles]:
         bedfiles, matrixfiles = self.file_finder.find_hicpro_bed_matrix_files()
         grouped_files = self.file_grouper.group_files(bedfiles, matrixfiles)
 
         if self.config.pipeline_settings.normalized_data:
-            matrix_files_to_round = [value[1] for value in grouped_files.values()]
+            matrix_files_to_round = [group.matrix_file for group in grouped_files]
             rounded_matrix_files = self.matrix_rounder.round_floats_in_iced_files(matrix_files_to_round)
 
-            # Replace float matrix files in the grouped_files dict with the inted rounded ones
-            for key, (bedfile, _) in grouped_files.items():
-                grouped_files[key] = (bedfile, rounded_matrix_files.pop(0))
+            # Update matrix files in the GroupedFiles instances
+            for i, group in enumerate(grouped_files):
+                grouped_files[i] = GroupedFiles(metadata=group.metadata, bed_file=group.bed_file, matrix_file=rounded_matrix_files[i])
 
         return grouped_files
 
@@ -91,7 +92,7 @@ class HicProFileGrouper:
     def __init__(self, config: Config):
         self.config = config
 
-    def group_files(self, bedfiles: List[Path], matrixfiles: List[Path]) -> Dict[Tuple[str, int], Tuple[Path, Path]]:
+    def group_files(self, bedfiles: List[Path], matrixfiles: List[Path]) -> List[GroupedFiles]:
         """
         Groups bed files and matrix files based on the normalization setting.
 
@@ -105,21 +106,23 @@ class HicProFileGrouper:
             Extracts the experiment and resolution from a given file based on its name and path.
             """
             if self.config.pipeline_settings.normalized_data:
-                experiment, resolution, _ = file.stem.rsplit("_", 2)
-                resolution = int(resolution)
+                exp_name, res_value, _ = file.stem.rsplit("_", 2)
+                res_value = int(res_value)
             else:
-                experiment = file.parents[2].name
-                resolution = int(file.stem.rsplit("_", 2)[1])
-            return experiment, resolution
+                exp_name = file.parents[2].name
+                res_value = int(file.stem.rsplit("_", 2)[1])
+            return exp_name, res_value
 
-        grouped_files: Dict[Tuple[str, int], Tuple[Path, Path]] = {}
+        grouped_files = []
 
         bedfile_lookup = {extract_metadata_from_file(bedfile): bedfile for bedfile in bedfiles}
 
         for matrixfile in matrixfiles:
             key = extract_metadata_from_file(matrixfile)
             if key in bedfile_lookup:
-                grouped_files[key] = (bedfile_lookup[key], matrixfile)
+                experiment, resolution = key
+                metadata = Metadata(experiment=experiment, resolution=resolution)
+                grouped_files.append(GroupedFiles(metadata=metadata, bed_file=bedfile_lookup[key], matrix_file=matrixfile))
 
         return grouped_files
 
