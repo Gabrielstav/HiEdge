@@ -3,7 +3,7 @@
 # Import modules
 import yaml
 from dataclasses import dataclass
-from typing import List, Dict, NamedTuple
+from typing import List, Dict, NamedTuple, Optional
 from pathlib import Path
 
 class GenomicRange(NamedTuple):
@@ -11,12 +11,17 @@ class GenomicRange(NamedTuple):
     end: int
 
 @dataclass(frozen=True)
+class ReferencePaths:
+    blacklist_dir: Optional[Path] = None
+    cytoband_dir: Optional[Path] = None
+
+@dataclass(frozen=True)
 class Paths:
     input_dir: Path
     output_dir: Path
     nchg_path: Path
-    blacklist_dir: Path
-    cytoband_dir: Path
+    hg19: ReferencePaths
+    hg38: ReferencePaths
 
 @dataclass(frozen=True)
 class PipelineSettings:

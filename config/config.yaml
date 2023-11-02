@@ -13,8 +13,12 @@ paths:
   nchg_path: ""
 
   # Reference data files
-  blacklist_dir: "/Users/GBS/PythonProjects/HiEdge/reference/hg19-blacklist.v2.bed"
-  cytoband_dir: "/Users/GBS/PythonProjects/HiEdge/reference/cytoBand_hg19.txt"
+  hg19:
+    blacklist_dir: "/Users/GBS/PythonProjects/HiEdge/reference/hg19-blacklist.v2.bed"
+    cytoband_dir: "/Users/GBS/PythonProjects/HiEdge/reference/cytoBand_hg19.txt"
+  hg38:
+    blacklist_dir: ""
+    cytoband_dir: ""
 
 pipeline_settings:
 
