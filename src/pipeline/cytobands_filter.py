@@ -1,80 +1,47 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
+from src.setup.config_loader import Config
+from src.setup.data_structures import BlacklistOutput, CytobandOutput
+from src.reference_handling.reference_parser import ReferenceFileParser as ReferenceParser
+import pybedtools as pbt
+import pandas as pd
 
-class cytobands_filter:
-
+class CytobandHelper:
     @staticmethod
-    def remove_cytobands(blacklisted_bedpe_file):
-        """
-        Cytoband locations are determined in this case by Giemsa staining
-        and are located and removed from the BEDPE file.
-        """
+    def get_cytoband_regions(config: Config) -> pbt.BedTool:
+        reference_parser = ReferenceParser(config)
+        cytoband_bedtool = reference_parser.parse_cytoband_file()
+        # Filter for regions containing 'acen' (centromeric regions)
+        acen_regions = cytoband_bedtool.filter(lambda x: x[4] == "acen").saveas()
+        return acen_regions
 
-        try:
-            os.chdir(SetDirectories.get_reference_dir())
-            cytobands = os.path.join(SetDirectories.get_reference_dir(), "hg19/cytoBand_hg19.txt")
-            centromeric_regions = []
-            with open(cytobands, "r") as f:
-                cytobands = f.readlines()
-                for line in cytobands:
-                    line = line.strip().split("\t")
-                    if line[4] == "acen":
-                        centromeric_regions.append(line[0:5])
+class RemoveCytobandRegions:
+    def __init__(self, config: Config, blacklist_output: BlacklistOutput):
+        self.config = config
+        self.blacklist_output = blacklist_output
+        self.blacklist_ddf = blacklist_output.blacklist_ddf
+        self.cytoband_regions = CytobandHelper.get_cytoband_regions(config)
+        self.window_size = blacklist_output.metadata.resolution
 
-            os.chdir(SetDirectories.get_temp_dir() + "/blacklisted")
-            blacklisted_pbt = pbt.BedTool(blacklisted_bedpe_file)
+    def _filter_single_partition(self, partition: pd.DataFrame) -> pd.DataFrame:
+        pbt_partition = pbt.BedTool.from_dataframe(partition)
+        # Here, we want to make sure we use the window parameter correctly
+        filtered_partition = pbt_partition.window(self.cytoband_regions, w=self.window_size, v=True)
+        filtered_partition_df = filtered_partition.to_dataframe()
+        filtered_partition_df.columns = self.blacklist_output.blacklist_ddf.columns
+        return filtered_partition_df
 
-            window_size = int(re.search(r"(\d+)[^/\d]*$", blacklisted_bedpe_file).group(1))
-            if not isinstance(window_size, int):
-                raise ValueError(f"Window size must be an integer, {window_size} is not an integer.")
+    def filter_cytobands(self):
+        filtered_partitions = self.blacklist_ddf.map_partitions(
+            self._filter_single_partition,
+            meta=self.blacklist_ddf._meta  # use df struct from blacklist class (which again uses from bedpe class, ignore warning)
+        )
+        return filtered_partitions
 
-            no_cytobands = blacklisted_pbt.window(centromeric_regions, w=int(window_size), r=False, v=True)
-            custom_print(f"Finished processing file: {os.path.basename(blacklisted_bedpe_file)}, PID: {os.getpid()}, TID: {threading.get_ident()}")
-            return no_cytobands
-
-        except Exception as e:
-            tid = threading.get_ident()
-            print(f"Error processing {blacklisted_bedpe_file}: {e}, PID: {os.getpid()}, TID: {tid}")
-            raise
-
-    @staticmethod
-    def input_to_remove_cytobands():
-        """
-        Calls the remove_cytobands function on each file in the blacklisted directory
-        """
-
-        global first_print
-        first_print = True
-
-        blacklisted_dir_path = SetDirectories.get_temp_dir() + "/blacklisted"
-        blacklisted_dir = os.listdir(blacklisted_dir_path)
-
-        # Create the output directory if it doesn't exist
-        output_dir = os.path.join(SetDirectories.get_temp_dir(), "no_cytobands")
-        if not os.path.exists(output_dir):
-            os.mkdir(output_dir)
-        else:
-            shutil.rmtree(output_dir)
-            os.mkdir(output_dir)
-
-        for file in blacklisted_dir:
-            full_path = os.path.join(blacklisted_dir_path, file)
-            if not os.path.isfile(full_path):
-                print(f"File {file} does not exist.")
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=SetDirectories.get_threads()) as executor:
-            full_paths = [os.path.join(blacklisted_dir_path, file) for file in blacklisted_dir]
-            futures = list(executor.map(Pipeline.remove_cytobands, full_paths))
-            for bedpe_file, future in zip(blacklisted_dir, futures):
-                try:
-                    no_cytoband_bedpe = future
-                    output_filename = f"{bedpe_file[:-len('.bedpe')]}_no_cytobands.bedpe"
-                    converted_nc_bedpe = no_cytoband_bedpe.to_dataframe().to_csv(sep="\t", index=False, header=False)
-                    output_filepath = os.path.join(output_dir, output_filename)
-                    with open(output_filepath, "w") as f:
-                        f.writelines(converted_nc_bedpe)
-
-                except Exception as e:
-                    tid = threading.get_ident()
-                    print(f"Error processing {bedpe_file}: {e}, PID: {os.getpid()}, TID: {tid}")
+    def run(self) -> CytobandOutput:
+        # Triggers the actual computation
+        filtered_ddf = self.filter_cytobands()
+        result = filtered_ddf.compute()
+        output = CytobandOutput(metadata=self.blacklist_output.metadata, cytoband_ddf=result)
+        return output

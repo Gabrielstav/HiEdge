@@ -3,7 +3,7 @@
 # Import modules
 import re
 from pathlib import Path
-from typing import List, Set, Tuple, Dict, Iterable, Optional
+from typing import List, Set, Tuple, Iterable, Optional
 from config_loader import Config
 from data_structures import GroupedFiles, Metadata
 
