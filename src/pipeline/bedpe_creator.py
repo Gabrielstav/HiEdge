@@ -5,13 +5,15 @@ from src.setup.config_loader import ConfigMapper as Config
 from src.setup.data_structures import BedpeOutput, GroupedFiles
 import dask.dataframe as dd
 
+# TODO: for all ddfs make validation and assign types
+
 
 class BedpeCreator:
     def __init__(self, config: Config, grouped_files: GroupedFiles):
         self.config = config  # might need config for filtering later (chr, genomic range etc.)
         self.grouped_files = grouped_files
 
-    def make_bedpe_dask(self) -> BedpeOutput:
+    def _make_bedpe_dask(self) -> BedpeOutput:
         bed_ddf = dd.read_csv(self.grouped_files.bed_file, sep="\t", header=None, names=["chr", "start", "end", "idx"])
         matrix_ddf = dd.read_csv(self.grouped_files.matrix_file, sep="\t", header=None, names=["id1", "id2", "interaction_count"])
 

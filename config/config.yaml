@@ -27,7 +27,7 @@ pipeline_settings:
 
   # Hi-C Pro file discovery settings
   hicpro_raw_dirname: "raw" # Directory containing raw HiC-Pro matrix output
-  hicpro_norm_dirname: "iced" # Directory containing balanced HiC-Pro matrix output
+  hicpro_norm_dirname: "iced" # Directory containing balanced HiC-Pro matrix output and bias matrices
 
   # Determine types of chromatin interactions to consider
   # Only one of these should be set to True at a time
@@ -39,18 +39,31 @@ pipeline_settings:
   threads: 8  # Number of threads to use
   executor: "multiprocessing"  # Execution mode: "multiprocessing" or "threading"
   no_split: False  # If true, data won't be split on chromosomes
-  normalized_data: False  # If set to true, use balanced matrix files by iterative correction from Hi-C Pro (iced) instead of raw matrix files (raw)
-  resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb)
+
+  iced_data: False  # If set to true, use balanced matrix files by iterative correction from Hi-C Pro (iced) instead of raw matrix files (raw)
+  resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb) for data to be processed (if empty, process all resolutions)
+  process_interchromosomal: True # If true, process interchromosomal data as well
+  interchromosomal_resolutions: 1000000 # Resolutions to consider for interchromosomal data (if empty, process all resolutions)
+
 
   # Filtering settings
   filter_blacklist: True  # If true, filter out interactions in blacklist regions (blacklist file path)
   filter_cytobands: True  # If true, filter out interactions in cytoband regions (cytobands file path)
   remove_chromosomes: ["chr2", "chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from pipeline. Empty list means no chromosomes are selected.
-  select_chromosomes: [] # List of strings of chromosome(s) to include in pipeline, if none all included, all chromosomes not selected are omitted. Empty list means no speciic chromosomes are selected.
+  select_chromosomes: [] # List of strings of chromosome(s) to include in pipeline, all chromosomes not selected are omitted. Empty list means no speciic chromosomes are selected.
   select_regions:
     chr1: "0-1000, 20000-3500000, 1-10"
   omit_regions:
     chrx: "100-200"
+
+statistical_settings:
+
+  # or we could deouple bias from normalization
+  use_bias_from_hicpro: True
+  calculate_bias: False  # Calculate bias internally, without the use of external bias files
+  kr_normalization: False
+  ice_normalization: True
+
 
 
   # Statistical settings

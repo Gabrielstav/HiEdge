@@ -31,12 +31,12 @@ class RemoveBlacklistedRegions:
     def filter_blacklist(self):
         filtered_partitions = self.bedpe_ddf.map_partitions(
             self._filter_single_partition,
-            meta=self.bedpe_ddf._meta # use df struct from bedpe class (ignore warning, Dask uses private naming convention for non-private methods (?!))
+            meta=self.bedpe_ddf._meta # use df struct from bedpe class (ignore warning, Dask uses private naming convention for non-private methods)
         )
         return filtered_partitions
 
     def run(self) -> BlacklistOutput:
         filtered_ddf = self.filter_blacklist()
         result = filtered_ddf.compute()
-        output = BlacklistOutput(metadata=self.bedpe_output.metadata, blacklist_ddf=result)
+        output = BlacklistOutput(metadata=self.bedpe_output.metadata, bedpe_ddf=result)
         return output

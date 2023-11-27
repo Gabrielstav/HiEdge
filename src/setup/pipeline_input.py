@@ -8,6 +8,8 @@ from config_loader import Config
 from data_structures import GroupedFiles, Metadata
 
 
+# TODO: Make class that also discovers hic pro bias files for normalization before spline correction, group them with correct data instances (make actual reading and transformations in the dp for stat
+
 class HicProInputFilePreparer:
 
     def __init__(self, config: Config):
@@ -44,6 +46,7 @@ class FileFinder:
         bed_files: List[Path] = []
         selected_matrix_files: List[Path] = []
         found_resolutions: Set[int] = set()
+        found_bias_files: List[Path] = []
 
         raw_subdirectories = self._find_subdirectories(self.config.pipeline_settings.hicpro_raw_dirname)
         iced_subdirectories = self._find_subdirectories(self.config.pipeline_settings.hicpro_norm_dirname)
@@ -62,6 +65,12 @@ class FileFinder:
             for subdir in iced_subdirectories:
                 found_iced_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.matrix'), found_resolutions)
                 selected_matrix_files.extend(found_iced_matrix_files)
+
+        # If we use bias in spline fitting, we could also discover the bias files (matrix.bias in iced subdirectory) here:
+            if self.config.pipeline_settings.discover_bias:
+                for subdir in iced_subdirectories:
+                    pass
+
 
         return bed_files, selected_matrix_files
 

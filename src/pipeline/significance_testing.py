@@ -1,6 +1,56 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
+from scipy import stats
+
+# stats.nchypergeom_wallenius
+# stats.nchypergeom_fisher
+# stats.nbinom
+from typing import List
+
+
+
+
+class NchgDistribution:
+
+    def __init__(self):
+        pass
+
+class Splines:
+
+    def __init__(self):
+        pass
+
+class AggregateStatistics:
+
+    """
+    this class calculates aggregate statistics over every chunk (total interaction count, expected interaction count)
+    """
+
+    def __init__(self):
+        pass
+
+class FindSignificantInteractions:
+
+    """
+    this class should use the NCHG distribution and the splines, as well as aggregate statistics for each chunk (by chromosome?),
+    and apply the significance testing to each chunk (each interaction needs genomic distance, observed interaction count + all aggregate statistics)
+    """
+
+    def __init__(self):
+        pass
+
+class FindSignificantInterchromosomalInteractions:
+
+    """
+    For interchromosomal interactions we do not needd splines nor the NCHG distribution, because there is no distance dependant decay,
+    we use NCHG dist and Fiscer's exact test (?). This will be more difficult to parallelize, but can chunk by source interaction
+    to X amount of targets across chromosomes, so each chunks contains all interactions for one chromosome, with summary statistics derived from same method as the intra data.
+    """
+
+    def __init__(self):
+        pass
+
 
 class significant_contacts:
 

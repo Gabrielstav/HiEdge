@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import dask.dataframe as dd
 import dask.array as da
+from typing import Optional
 
 # rename file to pipeline_controleller from data_structures? and use nested dataclass where metadata is the same and fields are the structs for each pipeline method?
 # could be nice to have metadata in one place since its not changing for one experiment, different instances of this class would have different experiment values
@@ -18,6 +19,7 @@ import dask.array as da
 class Metadata:
     experiment: str
     resolution: int
+    interaction_type: Optional[str] = None
 
 @dataclass
 class GroupedFiles:
@@ -31,19 +33,36 @@ class BedpeOutput:
     bedpe_ddf: dd.DataFrame
 
 @dataclass
+class SplittingOutput:
+    data: dd.DataFrame
+    metadata: Metadata
+
+@dataclass
+class FilteringOutput:
+    data: dd.DataFrame
+    metadata: Metadata
+
+@dataclass
 class BlacklistOutput:
     metadata: Metadata
-    blacklist_ddf: dd.DataFrame
+    bedpe_ddf: dd.DataFrame
 
 @dataclass
 class CytobandOutput:
     metadata: Metadata
-    cytoband_ddf: dd.DataFrame
+    bedpe_ddf: dd.DataFrame
 
+@dataclass
+class StatInput:
+    metadata: Metadata
+    bedpe_ddf: dd.DataFrame
+
+
+# IDK YET:
 @dataclass
 class NchgOutput:
     metadata: Metadata
-    nchg_ddf: da.array  # ?? idk yet, probably dask.array since we need to vectorize data but no, we do not need to pass that to the downstream methods
+    nchg_ddf: da.array
 
 @dataclass
 class PadjOutput:
