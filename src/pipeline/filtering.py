@@ -1,7 +1,7 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
-from src.setup.config_loader import ConfigMapper as Config
+from src.setup.config_loader import Config
 from src.pipeline.bedpe_creator import BedpeOutput
 from src.setup.data_structures import Metadata, SplittingOutput, FilteringOutput
 from dataclasses import dataclass
@@ -84,66 +84,74 @@ class SplitInteractions:
 
         return intra_output, inter_output
 
-# TODO: Finish Filtering on ranges (inter, parsing) and same for chromosome (ez) 
-
 class FilterRanges:
 
-    def __init__(self, config: Config, data_input: SplittingOutput):
+    def __init__(self, config: Config):
         self.config = config
-        self.data_df = data_input.data
-        self.metadata = data_input.metadata
+        self.region_type = self._determine_region_type()
+        self.transformed_regions = self._transform_regions()
+        self.cached_omit_dict = None
+        self.cached_select_dict = None
 
-    def filter_data(self):
-        """
-        Filter out regions based on config file settings
-        :return: Dataclass with data and metadata, where the dd.DataFrames are filtered based
-        """
-        if self.metadata.interaction_type == 'intra':
-            self.data_df = self._filter_intra_ranges(self.data_df)
-        elif self.metadata.interaction_type == 'inter':
-            self.data_df = self._filter_inter_ranges(self.data_df)
+    def _determine_region_type(self):
+        if self.config.pipeline_settings.select_regions:
+            return 'select'
+        elif self.config.pipeline_settings.omit_regions:
+            return 'omit'
+        else:
+            return None
 
-        # Return updated data
-        return FilteringOutput(data=self.data_df, metadata=self.metadata)
+    def _transform_regions(self):
+        regions = self.config.pipeline_settings.select_regions if self.region_type == 'select' else self.config.pipeline_settings.omit_regions
+        rows = [{'chromosome': chromosome, 'start': genomic_range.start, 'end': genomic_range.end}
+                for chromosome, ranges in regions.items() for genomic_range in ranges]
+        return pd.DataFrame(rows)
 
-    def _parse_ranges(self):
-        pass
+    def _preprocess_regions(self, transformed_regions):
+        region_dict = {}
+        for row in transformed_regions.itertuples(index=False):
+            region_dict.setdefault(row.chromosome, []).append((row.start, row.end))
+        return region_dict
 
+    def _get_omit_dict(self):
+        if self.cached_omit_dict is None:
+            self.cached_omit_dict = self._preprocess_regions(self.transformed_regions)
+        return self.cached_omit_dict
 
-    def _filter_intra_ranges(self, df):
-        if self.config.select_regions:
-            df = self.include_selected_regions(df, self.config.select_regions)
-        if self.config.omit_regions:
-            df = self.exclude_omitted_regions(df, self.config.omit_regions)
-        return df
+    def _get_select_dict(self):
+        if self.cached_select_dict is None:
+            self.cached_select_dict = self._preprocess_regions(self.transformed_regions)
+        return self.cached_select_dict
 
-    @staticmethod
-    def include_selected_regions(df, select_regions):
-        conditions = []
-        for chromosome, regions in select_regions.items():
-            for region in regions:
-                condition = ((df['chr_1'] == chromosome) &
-                             (df['start_1'] >= region.start) & (df['end_1'] <= region.end) &
-                             (df['chr_2'] == chromosome) &
-                             (df['start_2'] >= region.start) & (df['end_2'] <= region.end))
-                conditions.append(condition)
+    def _check_overlap(self, interaction, region_dict):
+        def overlaps_with(locus_chr, locus_start, locus_end):
+            for start, end in region_dict.get(locus_chr, []):
+                if locus_start <= end and locus_end >= start:
+                    return True
+            return False
 
-        combined_condition = pd.concat(conditions, axis=1).any(axis=1)
-        return df[combined_condition]
+        if interaction['interaction_type'] == 'intra':
+            return overlaps_with(interaction['chr_1'], interaction['start_1'], interaction['end_1'])
+        elif interaction['interaction_type'] == 'inter':
+            return overlaps_with(interaction['chr_1'], interaction['start_1'], interaction['end_1']) or \
+                   overlaps_with(interaction['chr_2'], interaction['start_2'], interaction['end_2'])
+        return False
 
-    @staticmethod
-    def exclude_omitted_regions(df, omit_regions):
-        conditions = []
-        for chromosome, regions in omit_regions.items():
-            for region in regions:
-                condition = ~((df['chr_1'] == chromosome) &
-                              ((df['start_1'] <= region.end) & (df['end_1'] >= region.start)) |
-                              (df['chr_2'] == chromosome) &
-                              ((df['start_2'] <= region.end) & (df['end_2'] >= region.start)))
-                conditions.append(condition)
+    def filter_omit_regions(self, data: dd.DataFrame) -> dd.DataFrame:
+        omit_dict = self._get_omit_dict()
+        filtered_data = data.map_partitions(
+            lambda df: df[~df.apply(lambda row: self._check_overlap(row, omit_dict), axis=1)]
+        )
+        return filtered_data
 
-        combined_condition = pd.concat(conditions, axis=1).all(axis=1)
-        return df[combined_condition]
+    def filter_select_regions(self, data: dd.DataFrame) -> dd.DataFrame:
+        select_dict = self._get_select_dict()
+        filtered_data = data.map_partitions(
+            lambda df: df[df.apply(lambda row: self._check_overlap(row, select_dict), axis=1)]
+        )
+        return filtered_data
+
+# TODO: Finish Filtering on chromosomes
 
 class FilterChromosomes:
 

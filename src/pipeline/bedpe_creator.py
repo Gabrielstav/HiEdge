@@ -1,7 +1,7 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
-from src.setup.config_loader import ConfigMapper as Config
+from src.setup.config_loader import Config
 from src.setup.data_structures import BedpeOutput, GroupedFiles
 import dask.dataframe as dd
 
