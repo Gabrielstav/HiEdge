@@ -23,7 +23,7 @@ class BedpeCreator:
         bedpe_ddf = merged_ddf[["chr_1", "start_1", "end_1", "chr_2", "start_2", "end_2", "interaction_count"]]
 
         # Now create the BedpeOutput dataclass instance using the metadata and the bedpe_ddf
-        bedpe_output = BedpeOutput(metadata=self.grouped_files.metadata, bedpe_ddf=bedpe_ddf)
+        bedpe_output = BedpeOutput(metadata=self.grouped_files.metadata, data=bedpe_ddf)
         return bedpe_output
 
 

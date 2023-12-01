@@ -44,6 +44,7 @@ pipeline_settings:
   resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb) for data to be processed (if empty, process all resolutions)
   process_interchromosomal: True # If true, process interchromosomal data as well
   interchromosomal_resolutions: 1000000 # Resolutions to consider for interchromosomal data (if empty, process all resolutions)
+  use_hicpro_bias_files: True # If true, use bias files from HiC-Pro for normalization
 
 
   # Filtering settings

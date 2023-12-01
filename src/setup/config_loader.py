@@ -28,16 +28,18 @@ class PipelineSettings:
     reference_genome: str
     hicpro_raw_dirname: str
     hicpro_norm_dirname: str
+    use_hicpro_bias_files: bool
     inter: bool
     intra: bool
     mixed: bool
     threads: int
     executor: str
     no_split: bool
-    normalized_data: bool
+    iced_data: bool
     resolutions: List[int]
     filter_blacklist: bool
     filter_cytobands: bool
+    remove_chromosomes: List[str]
     select_chromosomes: List[str]
     select_regions: Dict[str, List[GenomicRange]]
     omit_regions: Dict[str, List[GenomicRange]]

@@ -9,50 +9,44 @@ from dask import dataframe as dd
 import pandas as pd
 
 
-# TODO: Make filtering on genomic ranges and chromosomes here
+class FilteringController:
 
-# TODO: Also make metadata updates on interaction type either at node level (?) or just on dataset level at least, we need this metadata for statistical testing
-#   Either we split inter and intra here, before any processing, or we splint intra and inter before input to modeling..?
-#   If we split before processing we could have intra and inter as separate instances and check for metadata attribute before passing to modeling
-#   Or we could let the config decide, either process them together, intra only, inter only or process them separately...
-#   If processed together, we could join inter and intra, reeturning unique entries but this could be kinda bad becasue different statistical assumptions in same dataset...
-#   Since we store the dask dataframes containing interactions with metadata as fields in dataclasses, where one instance is unique data (data being one resolution + cell line),
-#   We could update the dataclasses to also store interaction metadata (inter or intra) and then one instance could be interaction type.
-#   The downside with this is that for one pipeline run, the intra data processing settings would also appply to inter data instances as the config is static for each run
-#   Another appraoch would be to separate inter and intra settings in the config, and let users decide what resolution to process for both inter and intra, or just
-#   have one option (inter and intra), always handling inter and intra in separate runs..
-#   Perhaps the easiest thing, for the users, is to have one option in the config: process_intra, and then if this is true, set the resolutions at which the inter data should be processed.
-#   For all resolutions not set by this option, only intra interactions would be considered. In the inter datasets, only inter interactions are considered. This way the dataclasses could just
-#   have a interaction type field that is updated based on the interaction type in the data and the config settinggs, and since the instances are separate, we can just check the config setting to
-#   only process inter data of certion resolutions and check the dataclasses when doing statistical stuff to know what method to apply to the data?
+    def __init__(self, config: Config, data: dd.DataFrame, metadata: Metadata):
+        self.config = config
+        self.data = data
+        self.metadata = metadata
 
-# TODO:
-#   The simplest approach is to only let interaction type data be run-specific, it would be easier for config and statistical modeling
-#   But, we could acieve the same thing with more complicated config, where inter and intra resolutions are set separately.
-#   All intra datasets should then have inter interactions filtered out, and vice versa, where inter and intra resolutions are explicitly set in the config.
-#   This has the advantage of not needing separate runs to process inter data, while still keeping the configuration flexible.
-#   The downsie to splitting and letting the pipeline process both inter and intra is it makes the config so much more complicated.
-#   When we create the bedpe daaframes, the containg both inter and intra interactions
+    def run_filters(self):
+        # Split data based on interaction type
+        splitter = SplitInteractions(self.config, BedpeOutput(data=self.data, metadata=self.metadata))
+        intra_output, inter_output = splitter.split_datasets_by_interaction_type()
 
+        # Apply chromosome filtering to both intra and inter datasets if specified
+        if self.config.pipeline_settings.remove_chromosomes or self.config.pipeline_settings.select_chromosomes:
+            chromosome_filter = FilterChromosomes(self.config)
+            intra_output.data = chromosome_filter.filter_data(intra_output.data)
+            inter_output.data = chromosome_filter.filter_data(inter_output.data)
 
-class RunFiltering:
+        # Apply range filtering to both intra and inter datasets if specified
+        range_filter = FilterRanges(self.config)
+        if self.config.pipeline_settings.omit_regions:
+            intra_output.data = range_filter.filter_omit_regions(intra_output.data)
+            inter_output.data = range_filter.filter_omit_regions(inter_output.data)
+        elif self.config.pipeline_settings.select_regions:
+            intra_output.data = range_filter.filter_select_regions(intra_output.data)
+            inter_output.data = range_filter.filter_select_regions(inter_output.data)
 
-    def __init__(self):
-        pass
+        # Return the filtered intra and inter datasets in FilteringOutput dataclasses
+        return FilteringOutput(data=intra_output.data, metadata=intra_output.metadata), \
+            FilteringOutput(data=inter_output.data, metadata=inter_output.metadata)
 
-    def on_data(self):
-        """
-        Run filtering classes on the datasets (bedpe dataclass containing the bedpe dask dataframes), instantiate dataclass "FilteringOutput" with data and metadata fields
-        :return: Dataclass containing data and metadata for all unique sets of data with filtering applied
-        """
-        pass
 
 class SplitInteractions:
 
     def __init__(self, config: Config, bedpe_output: BedpeOutput):
         self.config = config
         self.bedpe_metadata = bedpe_output.metadata
-        self.bedpe_ddf = bedpe_output.bedpe_ddf
+        self.bedpe_ddf = bedpe_output.data
 
     def split_datasets_by_interaction_type(self):
         """
@@ -83,6 +77,50 @@ class SplitInteractions:
         inter_output = SplittingOutput(data=inter_df, metadata=inter_metadata)
 
         return intra_output, inter_output
+
+
+class FilterChromosomes:
+
+    def __init__(self, config: Config):
+        self.config = config
+        self.chromosome_action = self._determine_chromosome_action()
+        self.chromosomes = self._get_chromosomes()
+
+    def _determine_chromosome_action(self):
+        if self.config.pipeline_settings.select_chromosomes:
+            return 'select'
+        elif self.config.pipeline_settings.remove_chromosomes:
+            return 'remove'
+        else:
+            return None
+
+    def _get_chromosomes(self):
+        return self.config.pipeline_settings.select_chromosomes if self.chromosome_action == 'select' \
+            else self.config.pipeline_settings.remove_chromosomes
+
+    def filter_data(self, data: dd.DataFrame) -> dd.DataFrame:
+        if self.chromosome_action == 'select':
+            return self._filter_select_chromosomes(data)
+        elif self.chromosome_action == 'remove':
+            return self._filter_remove_chromosomes(data)
+        return data
+
+    def _filter_select_chromosomes(self, data: dd.DataFrame) -> dd.DataFrame:
+        is_intra = data['interaction_type'] == 'intra'
+        is_inter = data['interaction_type'] == 'inter'
+        in_chromosomes = data['chr_1'].isin(self.chromosomes) | data['chr_2'].isin(self.chromosomes)
+
+        return data[(is_intra & (data['chr_1'].isin(self.chromosomes))) |
+                    (is_inter & in_chromosomes)]
+
+    def _filter_remove_chromosomes(self, data: dd.DataFrame) -> dd.DataFrame:
+        is_intra = data['interaction_type'] == 'intra'
+        is_inter = data['interaction_type'] == 'inter'
+        not_in_chromosomes = ~data['chr_1'].isin(self.chromosomes) & ~data['chr_2'].isin(self.chromosomes)
+
+        return data[(is_intra & (~data['chr_1'].isin(self.chromosomes))) |
+                    (is_inter & not_in_chromosomes)]
+
 
 class FilterRanges:
 
@@ -123,51 +161,29 @@ class FilterRanges:
             self.cached_select_dict = self._preprocess_regions(self.transformed_regions)
         return self.cached_select_dict
 
-    def _check_overlap(self, interaction, region_dict):
-        def overlaps_with(locus_chr, locus_start, locus_end):
-            for start, end in region_dict.get(locus_chr, []):
-                if locus_start <= end and locus_end >= start:
-                    return True
-            return False
-
-        if interaction['interaction_type'] == 'intra':
-            return overlaps_with(interaction['chr_1'], interaction['start_1'], interaction['end_1'])
-        elif interaction['interaction_type'] == 'inter':
-            return overlaps_with(interaction['chr_1'], interaction['start_1'], interaction['end_1']) or \
-                   overlaps_with(interaction['chr_2'], interaction['start_2'], interaction['end_2'])
-        return False
+    def _check_overlap_batch(self, df, region_dict):
+        omit_series = pd.Series(False, index=df.index)
+        for chromosome, regions in region_dict.items():
+            for start, end in regions:
+                overlap_cond = (
+                        ((df['chr_1'] == chromosome) & (df['start_1'] <= end) & (df['end_1'] >= start)) |
+                        ((df['chr_2'] == chromosome) & (df['start_2'] <= end) & (df['end_2'] >= start))
+                )
+                omit_series = omit_series | overlap_cond
+        return ~omit_series
 
     def filter_omit_regions(self, data: dd.DataFrame) -> dd.DataFrame:
         omit_dict = self._get_omit_dict()
-        filtered_data = data.map_partitions(
-            lambda df: df[~df.apply(lambda row: self._check_overlap(row, omit_dict), axis=1)]
+        mask = data.map_partitions(
+            lambda df: self._check_overlap_batch(df, omit_dict),
+            meta=bool
         )
-        return filtered_data
+        return data[mask]
 
     def filter_select_regions(self, data: dd.DataFrame) -> dd.DataFrame:
         select_dict = self._get_select_dict()
-        filtered_data = data.map_partitions(
-            lambda df: df[df.apply(lambda row: self._check_overlap(row, select_dict), axis=1)]
+        mask = data.map_partitions(
+            lambda df: self._check_overlap_batch(df, select_dict),
+            meta=bool
         )
-        return filtered_data
-
-# TODO: Finish Filtering on chromosomes
-
-class FilterChromosomes:
-
-    def __init__(self, config: Config):
-        self.config = config
-
-    def remove_chromosomes(self):
-        """
-        Removes specifie chromosomes from dataset
-        :return: Dask dataframe in bedpe format not containing removed chromosomes
-        """
-        pass
-
-    def include_chromosomes(self):
-        """
-        Removes all chromosomes not specified to be inlcuded
-        :return: Dask dataframe in bedpe format only containing chromosomes included
-        """
-        pass
+        return data[mask]

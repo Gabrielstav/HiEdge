@@ -7,9 +7,6 @@ from typing import List, Set, Tuple, Iterable, Optional
 from config_loader import Config
 from data_structures import GroupedFiles, Metadata
 
-
-# TODO: Make class that also discovers hic pro bias files for normalization before spline correction, group them with correct data instances (make actual reading and transformations in the dp for stat
-
 class HicProInputFilePreparer:
 
     def __init__(self, config: Config):
@@ -19,10 +16,10 @@ class HicProInputFilePreparer:
         self.matrix_rounder = IcedMatrixRounder(config)
 
     def prepare_input_files(self) -> List[GroupedFiles]:
-        bedfiles, matrixfiles = self.file_finder.find_hicpro_bed_matrix_files()
-        grouped_files = self.file_grouper.group_files(bedfiles, matrixfiles)
+        bedfiles, matrixfiles, biasfiles = self.file_finder.find_hicpro_bed_matrix_files()
+        grouped_files = self.file_grouper.group_files(bedfiles, matrixfiles, biasfiles)
 
-        if self.config.pipeline_settings.normalized_data:
+        if self.config.pipeline_settings.iced_data:
             matrix_files_to_round = [group.matrix_file for group in grouped_files]
             rounded_matrix_files = self.matrix_rounder.round_floats_in_iced_files(matrix_files_to_round)
 
@@ -38,7 +35,7 @@ class FileFinder:
         self.config = config
         self.resolutions: Optional[List[Path]] = None
 
-    def find_hicpro_bed_matrix_files(self) -> Tuple[List[Path], List[Path]]:
+    def find_hicpro_bed_matrix_files(self) -> Tuple[List[Path], List[Path], Optional[List[Path]]]:
         """
         Discovers bed files and matrix files (either raw or iced) based on the normalization setting.
         :returns: Tuple of lists of Paths to the bed files and matrix files.
@@ -46,7 +43,6 @@ class FileFinder:
         bed_files: List[Path] = []
         selected_matrix_files: List[Path] = []
         found_resolutions: Set[int] = set()
-        found_bias_files: List[Path] = []
 
         raw_subdirectories = self._find_subdirectories(self.config.pipeline_settings.hicpro_raw_dirname)
         iced_subdirectories = self._find_subdirectories(self.config.pipeline_settings.hicpro_norm_dirname)
@@ -56,23 +52,23 @@ class FileFinder:
             found_bed_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.bed'), found_resolutions)
             bed_files.extend(found_bed_files)
 
-            if not self.config.pipeline_settings.normalized_data:
+            if not self.config.pipeline_settings.iced_data:
                 found_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.matrix'), found_resolutions)
                 selected_matrix_files.extend(found_matrix_files)
 
-        # If normalized_data_flag, only search in iced subdirectories
-        if self.config.pipeline_settings.normalized_data:
+        # If iced_matrix config, only search in iced subdirectories
+        if self.config.pipeline_settings.iced_data:
             for subdir in iced_subdirectories:
                 found_iced_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.matrix'), found_resolutions)
                 selected_matrix_files.extend(found_iced_matrix_files)
 
-        # If we use bias in spline fitting, we could also discover the bias files (matrix.bias in iced subdirectory) here:
-            if self.config.pipeline_settings.discover_bias:
-                for subdir in iced_subdirectories:
-                    pass
+        bias_files = []
+        if self.config.pipeline_settings.use_hicpro_bias_files:
+            for subdir in iced_subdirectories:
+                found_files, _ = self._filter_files_on_resolution(subdir.glob('*.biases'), found_resolutions)
+                bias_files.extend(found_files)
 
-
-        return bed_files, selected_matrix_files
+        return bed_files, selected_matrix_files, bias_files
 
     def _find_subdirectories(self, dirname: str) -> List[Path]:
         return [path for path in self.config.paths.input_dir.rglob(dirname) if path.is_dir()]
@@ -101,12 +97,14 @@ class HicProFileGrouper:
     def __init__(self, config: Config):
         self.config = config
 
-    def group_files(self, bedfiles: List[Path], matrixfiles: List[Path]) -> List[GroupedFiles]:
+    def group_files(self, bedfiles: List[Path], matrixfiles: List[Path], biasfiles: Optional[List[Path]] = None) -> List[GroupedFiles]:
+
         """
         Groups bed files and matrix files based on the normalization setting.
 
         :param bedfiles: List of Paths to the bed files.
         :param matrixfiles: List of Paths to the matrix files.
+        :param biasfiles: List of Paths to the bias files.
         :returns: Dictionary with keys of the form (experiment, resolution) and values of the form (bedfile, matrixfile).
         """
 
@@ -114,7 +112,7 @@ class HicProFileGrouper:
             """
             Extracts the experiment and resolution from a given file based on its name and path.
             """
-            if self.config.pipeline_settings.normalized_data:
+            if self.config.pipeline_settings.iced_data:
                 exp_name, res_value, _ = file.stem.rsplit("_", 2)
                 res_value = int(res_value)
             else:
@@ -125,12 +123,14 @@ class HicProFileGrouper:
         grouped_files = []
 
         bedfile_lookup = {extract_metadata_from_file(bedfile): bedfile for bedfile in bedfiles}
+        biasfile_lookup = {extract_metadata_from_file(biasfile): biasfile for biasfile in biasfiles or []}
 
         for matrixfile in matrixfiles:
             key = extract_metadata_from_file(matrixfile)
             if key in bedfile_lookup:
                 experiment, resolution = key
-                metadata = Metadata(experiment=experiment, resolution=resolution)
+                bias_file = biasfile_lookup.get(key)
+                metadata = Metadata(experiment=experiment, resolution=resolution, bias_file_path=bias_file)
                 grouped_files.append(GroupedFiles(metadata=metadata, bed_file=bedfile_lookup[key], matrix_file=matrixfile))
 
         return grouped_files

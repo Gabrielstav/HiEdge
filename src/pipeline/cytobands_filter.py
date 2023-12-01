@@ -8,6 +8,7 @@ import pybedtools as pbt
 import pandas as pd
 
 class CytobandInputResolver:
+
     def __init__(self, bedpe_output, blacklist_output):
         self.bedpe_output = bedpe_output
         self.blacklist_output = blacklist_output
