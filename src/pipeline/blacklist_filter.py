@@ -17,7 +17,7 @@ class RemoveBlacklistedRegions:
     def __init__(self, config: Config, bedpe_output: BedpeOutput):
         self.config = config
         self.bedpe_output = bedpe_output
-        self.bedpe_ddf = bedpe_output.bedpe_ddf
+        self.bedpe_ddf = bedpe_output.data
         self.blacklisted_regions = BlacklistHelper.get_blacklisted_regions(config)
         self.window_size = bedpe_output.metadata.resolution
 
@@ -25,7 +25,7 @@ class RemoveBlacklistedRegions:
         pbt_partition = pbt.BedTool.from_dataframe(partition)
         filtered_partition = pbt_partition.window(self.blacklisted_regions, v=True, wa=True)
         filtered_partition_df = filtered_partition.to_dataframe()
-        filtered_partition_df.columns = self.bedpe_output.bedpe_ddf.columns
+        filtered_partition_df.columns = self.bedpe_output.data.columns
         return filtered_partition_df
 
     def filter_blacklist(self):

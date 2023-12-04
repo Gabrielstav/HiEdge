@@ -2,24 +2,25 @@
 
 # Import modules
 from src.setup.config_loader import Config
-from src.setup.data_structures import BlacklistOutput, CytobandOutput, BedpeOutput
+from src.setup.data_structures import BlacklistOutput, CytobandOutput, FilteringOutput
 from src.reference_handling.reference_parser import ReferenceFileParser as ReferenceParser
 import pybedtools as pbt
 import pandas as pd
 
+
 class CytobandInputResolver:
 
-    def __init__(self, bedpe_output, blacklist_output):
-        self.bedpe_output = bedpe_output
+    def __init__(self, filtering_output, blacklist_output):
+        self.filtering_output = filtering_output
         self.blacklist_output = blacklist_output
 
     def resolve_input(self):
         if isinstance(self.blacklist_output, BlacklistOutput):
             return self.blacklist_output
-        elif isinstance(self.bedpe_output, BedpeOutput):
-            return self.bedpe_output
+        elif not isinstance(self.blacklist_output, BlacklistOutput):
+            return self.filtering_output
         else:
-            raise ValueError("Invalid data class type provided")
+            raise ValueError("Invalid data class provided: Either FilteringOutput or BlacklistOutput.")
 
 class CytobandHelper:
     @staticmethod
@@ -29,6 +30,7 @@ class CytobandHelper:
         # Filter for regions containing "acen" (centromeric regions)
         acen_regions = cytoband_bedtool.filter(lambda x: x[4] == "acen").saveas()
         return acen_regions
+
 
 class RemoveCytobandRegions:
     def __init__(self, config: Config, data_input):

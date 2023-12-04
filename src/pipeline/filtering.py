@@ -3,8 +3,7 @@
 # Import modules
 from src.setup.config_loader import Config
 from src.pipeline.bedpe_creator import BedpeOutput
-from src.setup.data_structures import Metadata, SplittingOutput, FilteringOutput
-from dataclasses import dataclass
+from src.setup.data_structures import Metadata, FilteringOutput
 from dask import dataframe as dd
 import pandas as pd
 
@@ -17,17 +16,17 @@ class FilteringController:
         self.metadata = metadata
 
     def run_filters(self):
-        # Split data based on interaction type
-        splitter = SplitInteractions(self.config, BedpeOutput(data=self.data, metadata=self.metadata))
+        # Split data and instantiate FilteringOutput
+        splitter = SplitByInteractionType(self.config, BedpeOutput(data=self.data, metadata=self.metadata))
         intra_output, inter_output = splitter.split_datasets_by_interaction_type()
 
-        # Apply chromosome filtering to both intra and inter datasets if specified
+        # Apply chromosome filtering if specified
         if self.config.pipeline_settings.remove_chromosomes or self.config.pipeline_settings.select_chromosomes:
             chromosome_filter = FilterChromosomes(self.config)
             intra_output.data = chromosome_filter.filter_data(intra_output.data)
             inter_output.data = chromosome_filter.filter_data(inter_output.data)
 
-        # Apply range filtering to both intra and inter datasets if specified
+        # Apply range filtering if specified
         range_filter = FilterRanges(self.config)
         if self.config.pipeline_settings.omit_regions:
             intra_output.data = range_filter.filter_omit_regions(intra_output.data)
@@ -36,12 +35,11 @@ class FilteringController:
             intra_output.data = range_filter.filter_select_regions(intra_output.data)
             inter_output.data = range_filter.filter_select_regions(inter_output.data)
 
-        # Return the filtered intra and inter datasets in FilteringOutput dataclasses
-        return FilteringOutput(data=intra_output.data, metadata=intra_output.metadata), \
-            FilteringOutput(data=inter_output.data, metadata=inter_output.metadata)
+        # Return the potentially modified FilteringOutput instances
+        return intra_output, inter_output
 
 
-class SplitInteractions:
+class SplitByInteractionType:
 
     def __init__(self, config: Config, bedpe_output: BedpeOutput):
         self.config = config
@@ -49,32 +47,21 @@ class SplitInteractions:
         self.bedpe_ddf = bedpe_output.data
 
     def split_datasets_by_interaction_type(self):
-        """
-        Splits the bedpe dask dataframes by interaction type (inter- and intrachromosomal) to separate dask dataframes
-        Each instance of the bedpe output dataclass contains one dask dataframe that potentially encompasses both inter/intra
-        :return: Two dask dataframes, one containing only interchromosomal interaction and the other only intrachromosomal interactions
-        """
-
         intra_df = self.bedpe_ddf[self.bedpe_ddf["chr_1"] == self.bedpe_ddf["chr_2"]]
         inter_df = self.bedpe_ddf[self.bedpe_ddf["chr_1"] != self.bedpe_ddf["chr_2"]]
 
-        # Create metadata for intrachromosomal interactions
-        intra_metadata = Metadata(
-            experiment=self.bedpe_metadata.experiment,
-            resolution=self.bedpe_metadata.resolution,
-            interaction_type='intra'
-        )
+        intra_metadata = Metadata(experiment=self.bedpe_metadata.experiment,
+                                  resolution=self.bedpe_metadata.resolution,
+                                  interaction_type='intra',
+                                  bias_file_path=self.bedpe_metadata.bias_file_path)
 
-        # Create metadata for interchromosomal interactions
-        inter_metadata = Metadata(
-            experiment=self.bedpe_metadata.experiment,
-            resolution=self.bedpe_metadata.resolution,
-            interaction_type='inter'
-        )
+        inter_metadata = Metadata(experiment=self.bedpe_metadata.experiment,
+                                  resolution=self.bedpe_metadata.resolution,
+                                  interaction_type='inter',
+                                  bias_file_path=self.bedpe_metadata.bias_file_path)
 
-        # Create FilteringOutput instances
-        intra_output = SplittingOutput(data=intra_df, metadata=intra_metadata)
-        inter_output = SplittingOutput(data=inter_df, metadata=inter_metadata)
+        intra_output = FilteringOutput(data=intra_df, metadata=intra_metadata)
+        inter_output = FilteringOutput(data=inter_df, metadata=inter_metadata)
 
         return intra_output, inter_output
 

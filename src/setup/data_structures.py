@@ -26,11 +26,6 @@ class BedpeOutput:
     metadata: Metadata
 
 @dataclass
-class SplittingOutput:
-    data: dd.DataFrame
-    metadata: Metadata
-
-@dataclass
 class FilteringOutput:
     data: dd.DataFrame
     metadata: Metadata
@@ -49,20 +44,3 @@ class CytobandOutput:
 class StatInput:
     metadata: Metadata
     bedpe_ddf: dd.DataFrame
-
-
-# IDK YET:
-@dataclass
-class NchgOutput:
-    metadata: Metadata
-    nchg_ddf: da.array
-
-@dataclass
-class PadjOutput:
-    metadata: Metadata
-    padj_ddf: dd.DataFrame
-
-@dataclass
-class WriteEdgelist:
-    metadata: Metadata
-    edgelist: Path
