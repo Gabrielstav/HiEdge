@@ -36,6 +36,8 @@ class PipelineSettings:
     executor: str
     no_split: bool
     iced_data: bool
+    max_interaction_range: int
+    min_interaction_range: int
     resolutions: List[int]
     filter_blacklist: bool
     filter_cytobands: bool
@@ -44,7 +46,7 @@ class PipelineSettings:
     select_regions: Dict[str, List[GenomicRange]]
     omit_regions: Dict[str, List[GenomicRange]]
     fdr_threshold: float
-    n_quantiles: int
+    metabin_occupancy: int
 
     def __post_init__(self):
         object.__setattr__(self, 'select_regions', self._parse_ranges(self.select_regions))

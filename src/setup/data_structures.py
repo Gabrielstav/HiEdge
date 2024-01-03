@@ -22,25 +22,25 @@ class GroupedFiles:
 
 @dataclass
 class BedpeOutput:
-    data: dd.DataFrame
     metadata: Metadata
+    data: dd.DataFrame
 
 @dataclass
 class FilteringOutput:
-    data: dd.DataFrame
     metadata: Metadata
+    data: dd.DataFrame
 
 @dataclass
 class BlacklistOutput:
     metadata: Metadata
-    bedpe_ddf: dd.DataFrame
+    data: dd.DataFrame
 
 @dataclass
 class CytobandOutput:
     metadata: Metadata
-    bedpe_ddf: dd.DataFrame
+    data: dd.DataFrame
 
 @dataclass
-class StatInput:
+class SplineInput:
     metadata: Metadata
-    bedpe_ddf: dd.DataFrame
+    data: dd.DataFrame

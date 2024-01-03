@@ -41,10 +41,10 @@ pipeline_settings:
   no_split: False  # If true, data won't be split on chromosomes
 
   iced_data: False  # If set to true, use balanced matrix files by iterative correction from Hi-C Pro (iced) instead of raw matrix files (raw)
-  resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb) for data to be processed (if empty, process all resolutions)
-  process_interchromosomal: True # If true, process interchromosomal data as well
-  interchromosomal_resolutions: 1000000 # Resolutions to consider for interchromosomal data (if empty, process all resolutions)
-  use_hicpro_bias_files: True # If true, use bias files from HiC-Pro for normalization
+  interaction_type: mixed  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
+  intra_resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb) for data to be processed (if empty, process all resolutions)
+  inter_resolutions: 1000000 # Resolutions to consider for interchromosomal data (if empty, process all resolutions)
+  use_hicpro_bias_files: True # If true, use bias files from HiC-Pro for statistical testing
 
 
   # Filtering settings
@@ -56,20 +56,20 @@ pipeline_settings:
     chr1: "0-1000, 20000-3500000, 1-10"
   omit_regions:
     chrx: "100-200"
+  max_interaction_range: 10000000 # Maximum interaction threshold (genomic distance in bp) to consider. Leave empty to disable.
+  min_interaction_range: 100000 # Minimum interaction threshold (genomic distance in bp) to consider. Leave empty to disable.
 
-statistical_settings:
-
-  # or we could deouple bias from normalization
+# Statistical settings
   use_bias_from_hicpro: True
   calculate_bias: False  # Calculate bias internally, without the use of external bias files
   kr_normalization: False
-  ice_normalization: True
-
+  ice_normalization: False
 
 
   # Statistical settings
   fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values
-  n_quantiles: 100   # Number of quantiles for NCHG
+  metabin_occupancy: 100  # Target interaction count for equal occupancy bins for metabinning
+
 
 dask_settings:
 

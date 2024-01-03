@@ -2,82 +2,162 @@
 
 # Import modules
 from src.setup.config_loader import ConfigMapper as Config
-from src.setup.data_structures import FilteringOutput, BlacklistOutput, CytobandOutput, StatInput
+from src.setup.data_structures import BlacklistOutput, CytobandOutput, SplineInput
+import dask.dataframe as dd
+import numpy as np
 
-"""
-DataProcessor Class: Handles loading and organizing Hi-C data.
-ProbabilityCalculator Class: Responsible for computing interaction probabilities, calculate the mean interaction frequency per bin and prepare data for spline fitting.
-SplineFitter Class: Encapsulates the spline fitting process. This class will take the output from ProbabilityCalculator and fit a spline to model the expected interaction frequencies as a function of genomic distance.
-StatisticalModel Class: Performs statistical testing. It will use the spline model to calculate p-values for each interaction, considering the total sum of contact counts and observed count for a given interaction.
-ResultAggregator Class: Gathers and compiles results, particularly for parallel computation scenarios.
-
-"""
 
 class ResolveBedpeInput:
-    """
-    Resolves what BEDPE data class to pass to processing for statistical modeling based on config file (FilteringOutput, BlacklistOutput, CytobandOutput)
-    using the config instance to decide.
-    :return: Dataclass containing data and metadata
-    """
+
     def __init__(self, config: Config, data_output):
         self.config = config
         self.data_output = data_output
 
     def resolve_input(self):
-        if isinstance(self.data_output, CytobandOutput) and self.config.config_data.pipeline_settings.filter_cytobands:
-            return self.data_output
-        elif isinstance(self.data_output, BlacklistOutput) and self.config.config_data.pipeline_settings.filter_blacklist and not isinstance(self.data_output, CytobandOutput):
-            return self.data_output
-        elif isinstance(self.data_output, FilteringOutput):
-            return self.data_output
-        else:
-            raise ValueError("Invalid data class type provided")
+        # Mapping configuration options to data classes
+        data_class_mapping = {
+            "cytoband": (CytobandOutput, self.config.config_data.pipeline_settings.filter_cytobands),
+            "blacklist": (BlacklistOutput, self.config.config_data.pipeline_settings.filter_blacklist)
+        }
 
-    # Need to figure out what data to process (depending on what filtering classes are used) and return the appropriate dataclass instance contaning the data.
-    # We either use the data from the FilteringOutput class or the BlacklistOutput class or the CytobandOutput class.
+        for data_class, (output_type, use_filter) in data_class_mapping.items():
+            if isinstance(self.data_output, output_type) and use_filter:
+                return output_type
 
-class CalculateMidpoints:
+        # Return the data field of the resolved data class
+        return self.data_output.data
 
-    def __init__(self, config: Config, data_input):
+class DataPreparationController:
+
+    def __init__(self, config: Config, input_data):
         self.config = config
-        self.data_ddf = data_input.bedpe_ddf
-        self.metadata = data_input.metadata
+        self.input_data = input_data
 
-    def process_data(self):
-        # Calculate midpoints for each bin using vectorized operations if metadata == intra
-        self.data_ddf['midpoint_1'] = (self.data_ddf['start_1'] + self.data_ddf['end_1']) // 2
-        self.data_ddf['midpoint_2'] = (self.data_ddf['start_2'] + self.data_ddf['end_2']) // 2
+    def run(self):
+        # Resolve the input data class based on configuration
+        input_resolver = ResolveBedpeInput(self.config, self.input_data)
+        resolved_data = input_resolver.resolve_input()
 
-        # Create and return StatInput dataclass instance with the updated DataFrame
-        stat_input = StatInput(metadata=self.metadata, bedpe_ddf=self.data_ddf)
-        return stat_input
+        # Prepare data for spline fitting
+        prepared_data = self._prepare_data_for_spline(resolved_data)
 
-    pass
+        # Trigger computation and instantiate dataclass with results
+        if isinstance(prepared_data, dd.DataFrame):
+            computed_data = prepared_data.compute()
+        else:
+            computed_data = prepared_data
 
-class CalculateGenomicDistance:
+        # Instantiate and return the dataclass with computed data and original metadata
+        return SplineInput(metadata=self.input_data.metadata, data=computed_data)
 
-        def __init__(self, config: Config, data_input):
-            self.config = config
-            self.data_ddf = data_input.bedpe_ddf
-            self.metadata = data_input.metadata
+    def _prepare_data_for_spline(self, data) -> dd.DataFrame:
+        midpoint_calculator = MidpointCalculator(self.config)
+        data_with_midpoints = midpoint_calculator.calculate_midpoints(data)
 
-        pass
+        distance_calculator = DistanceCalculator(self.config)
+        data_with_distances = distance_calculator.calculate_distances(data_with_midpoints)
 
-class MeanInteractionFrequency:
+        binner = EqualOccupancyBinner(self.config, data_with_distances)
+        binned_data = binner.bin_data(data_with_distances)
 
-    def __init__(self, config: Config, data_input):
-            self.config = config
-            self.data_ddf = data_input.bedpe_ddf
-            self.metadata = data_input.metadata
+        aggregator = FrequencyAggregator(self.config)
+        aggregated_data = aggregator.aggregate_frequencies(binned_data)
 
-    pass
+        return aggregated_data
 
-class ApplyBiasToCounts:
 
-    def __init__(self, config: Config, data_input):
-            self.config = config
-            self.data_ddf = data_input.bedpe_ddf
-            self.metadata = data_input.metadata
+class MidpointCalculator:
 
-    pass
+    def __init__(self, config: Config):
+        self.config = config
+
+    @staticmethod
+    def calculate_midpoints(data: dd.DataFrame) -> dd.DataFrame:
+        data["midpoint_1"] = ((data["start_1"] + data["end_1"]) / 2).astype("int32")
+        data["midpoint_2"] = ((data["start_2"] + data["end_2"]) / 2).astype("int32")
+        return data.persist()
+
+class DistanceCalculator:
+
+    def __init__(self, config: Config):
+        self.config = config
+
+    @staticmethod
+    def calculate_distances(data: dd.DataFrame) -> dd.DataFrame:
+        data["genomic_distance"] = abs(data["midpoint_1"] - data["midpoint_2"]).astype("int32")
+        return data.persist()
+
+class EqualOccupancyBinner:
+
+    def __init__(self, config, input_data):
+        self.config = config
+        self.input_data = input_data
+
+    @staticmethod
+    def sort_data_by_distance(input_data) -> dd.DataFrame:
+        return input_data.sort_values("genomic_distance")
+
+    @staticmethod
+    def calculate_total_contacts(data) -> dd.DataFrame:
+        return data["interaction_count"].sum().compute()
+
+    def assign_to_bins(self, sorted_data, total_contacts):
+        target_per_bin = total_contacts / self.config.number_of_bins
+        sorted_data["cumulative_count"] = sorted_data["interaction_count"].cumsum()
+        sorted_data["bin_label"] = (sorted_data["cumulative_count"] / target_per_bin).astype("int")
+
+        # Handle the tiebreak condition
+        sorted_data = self.apply_tiebreak_condition
+
+        return sorted_data
+
+    def apply_tiebreak_condition(self):
+        # Identify rows where the tiebreak condition applies
+        self.input_data['needs_tiebreak'] = (
+                (self.input_data["genomic_distance"] == self.input_data["genomic_distance"].shift(1)) &
+                (self.input_data["bin_label"] != self.input_data["bin_label"].shift(1))
+        )
+
+        # Vectorized approach to adjust bin labels
+        # The logic here is to 'push forward' the bin label when a tiebreak is needed
+        self.input_data["adjusted_bin_label"] = self.input_data["bin_label"].where(~self.input_data["needs_tiebreak"], self.input_data["bin_label"].shift(1))
+
+        # Clean up and finalize
+        self.input_data = self.input_data.drop(["needs_tiebreak"], axis=1)
+        self.input_data = self.input_data.rename(columns={"adjusted_bin_label": "bin_label"})
+
+        return self
+
+    @staticmethod
+    def calculate_bin_statistics(binned_data):
+        # Calculate average genomic distance and contact probability for each bin
+        bin_stats = binned_data.groupby("bin_label").agg({
+            "genomic_distance": "mean",
+            "interaction_count": ["mean", "sum"]
+        }).compute()
+        bin_stats.columns = ["average_distance", "average_contact_probability", "total_contacts"]
+        return bin_stats
+
+    def bin_data(self, data):
+        sorted_data = self.sort_data_by_distance(data)
+        total_contacts = self.calculate_total_contacts(data)
+        binned_data = self.assign_to_bins(sorted_data, total_contacts)
+        bin_stats = self.calculate_bin_statistics(binned_data)
+        return bin_stats
+
+class FrequencyAggregator:
+
+    def __init__(self, config: Config):
+        self.config = config
+
+    # Aggregate frequencies of genomic distances
+    @staticmethod
+    def aggregate_frequencies(data: dd.DataFrame) -> dd.DataFrame:
+        aggregated_data = data.groupby("genomic_distance").agg({
+            "interaction_count": ["sum", "mean", "std"]
+        }).reset_index()
+        aggregated_data.columns = ["genomic_distance", "interaction_sum", "interaction_mean", "interaction_std"]
+        return aggregated_data.persist()
+
+
 

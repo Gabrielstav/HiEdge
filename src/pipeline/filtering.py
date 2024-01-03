@@ -35,6 +35,12 @@ class FilteringController:
             intra_output.data = range_filter.filter_select_regions(intra_output.data)
             inter_output.data = range_filter.filter_select_regions(inter_output.data)
 
+        # Apply interaction distance filtering if specified
+        if self.config.pipeline_settings.min_interaction_range or self.config.pipeline_settings.max_interaction_range:
+            interaction_distance_filter = FilterInteractionDistances(self.config)
+            intra_output.data = interaction_distance_filter.filter_data(intra_output.data)
+            inter_output.data = interaction_distance_filter.filter_data(inter_output.data)
+
         # Return the potentially modified FilteringOutput instances
         return intra_output, inter_output
 
@@ -132,7 +138,8 @@ class FilterRanges:
                 for chromosome, ranges in regions.items() for genomic_range in ranges]
         return pd.DataFrame(rows)
 
-    def _preprocess_regions(self, transformed_regions):
+    @staticmethod
+    def _preprocess_regions(transformed_regions):
         region_dict = {}
         for row in transformed_regions.itertuples(index=False):
             region_dict.setdefault(row.chromosome, []).append((row.start, row.end))
@@ -148,7 +155,8 @@ class FilterRanges:
             self.cached_select_dict = self._preprocess_regions(self.transformed_regions)
         return self.cached_select_dict
 
-    def _check_overlap_batch(self, df, region_dict):
+    @staticmethod
+    def _check_overlap_batch(df, region_dict):
         omit_series = pd.Series(False, index=df.index)
         for chromosome, regions in region_dict.items():
             for start, end in regions:
@@ -174,3 +182,15 @@ class FilterRanges:
             meta=bool
         )
         return data[mask]
+
+class FilterInteractionDistances:
+
+    def __init__(self, config: Config):
+        self.config = config
+        self.min_distance = self.config.pipeline_settings.min_interaction_range
+        self.max_distance = self.config.pipeline_settings.max_interaction_range
+
+    def filter_data(self, data: dd.DataFrame) -> dd.DataFrame:
+        return data[(data['genomic_distance'] >= self.min_distance) & (data['genomic_distance'] <= self.max_distance)]
+
+
