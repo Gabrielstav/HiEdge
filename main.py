@@ -17,6 +17,11 @@ import pickle as pickle
 import threading as threading
 from collections import defaultdict
 
+
+# Call each run method from each class in the pipeline,
+# first filtering, then processing, then statistical testing then plotting/output
+
+
 def run_pipeline():
     """
     Call selected methods of the HiC_Pipeline, in the order specified

@@ -47,6 +47,7 @@ class PipelineSettings:
     omit_regions: Dict[str, List[GenomicRange]]
     fdr_threshold: float
     metabin_occupancy: int
+    spline_passes: int
 
     def __post_init__(self):
         object.__setattr__(self, 'select_regions', self._parse_ranges(self.select_regions))

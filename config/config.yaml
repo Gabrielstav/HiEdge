@@ -64,6 +64,7 @@ pipeline_settings:
   calculate_bias: False  # Calculate bias internally, without the use of external bias files
   kr_normalization: False
   ice_normalization: False
+  spline_passes: 2  # Number of spline passes
 
 
   # Statistical settings

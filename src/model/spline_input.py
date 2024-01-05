@@ -1,11 +1,9 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
-from src.setup.config_loader import ConfigMapper as Config
+from src.setup.config_loader import Config
 from src.setup.data_structures import BlacklistOutput, CytobandOutput, SplineInput
 import dask.dataframe as dd
-import numpy as np
-
 
 class ResolveBedpeInput:
 
@@ -16,8 +14,8 @@ class ResolveBedpeInput:
     def resolve_input(self):
         # Mapping configuration options to data classes
         data_class_mapping = {
-            "cytoband": (CytobandOutput, self.config.config_data.pipeline_settings.filter_cytobands),
-            "blacklist": (BlacklistOutput, self.config.config_data.pipeline_settings.filter_blacklist)
+            "cytoband": (CytobandOutput, self.config.pipeline_settings.filter_cytobands),
+            "blacklist": (BlacklistOutput, self.config.pipeline_settings.filter_blacklist)
         }
 
         for data_class, (output_type, use_filter) in data_class_mapping.items():

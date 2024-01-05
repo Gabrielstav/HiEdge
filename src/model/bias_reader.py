@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from dataclasses import dataclass
 import dask.dataframe as dd
+from src.setup.config_loader import Config
 
 # TODO:
 #   This isdone after spline fitting, when calculating P values.
