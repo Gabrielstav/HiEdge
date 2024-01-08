@@ -41,6 +41,12 @@ class FilteringController:
             intra_output.data = interaction_distance_filter.filter_data(intra_output.data)
             inter_output.data = interaction_distance_filter.filter_data(inter_output.data)
 
+        # Apply bias filtering if specified
+        if self.config.pipeline_settings.use_hicpro_bias:
+            bias_filter = FilterBias()
+            intra_output.data = bias_filter.filter_bias(intra_output.data)
+            inter_output.data = bias_filter.filter_bias(inter_output.data)
+
         # Return the potentially modified FilteringOutput instances
         return intra_output, inter_output
 
@@ -192,5 +198,15 @@ class FilterInteractionDistances:
 
     def filter_data(self, data: dd.DataFrame) -> dd.DataFrame:
         return data[(data['genomic_distance'] >= self.min_distance) & (data['genomic_distance'] <= self.max_distance)]
+
+
+class FilterBias:
+    @staticmethod
+    def filter_bias(data: dd.DataFrame) -> dd.DataFrame:
+        # Filter out interactions where either bias value is -1
+        return data[(data['bias_1'] != -1) & (data['bias_2'] != -1)]
+
+
+
 
 

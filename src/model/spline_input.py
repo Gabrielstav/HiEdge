@@ -39,7 +39,7 @@ class DataPreparationController:
         # Prepare data for spline fitting
         prepared_data = self._prepare_data_for_spline(resolved_data)
 
-        # Trigger computation and instantiate dataclass with results
+        # Trigger computation
         if isinstance(prepared_data, dd.DataFrame):
             computed_data = prepared_data.compute()
         else:

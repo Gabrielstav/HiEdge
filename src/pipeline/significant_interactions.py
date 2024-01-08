@@ -18,6 +18,14 @@ from src.setup.config_loader import Config
 #    Make spline input class (DONE)
 #    Make spline fit class (DONE)
 #    Make p/q value and confidence interval class
+#    Make the same for inter
 
 # Either we handle inter- and intra data in the same file, where the p/q value and confidence interval classes handle both cases, or we make separate files ocntaining the inter- and intra classes.
+
+# if intra and binom:
+#   spline and p/q vals
+# if inter and binom:
+#   inter stats, then binom (?) and p/q vals
+# then same checks for NCHG if we implement that, need different classes for that, or we can include the calculations in spline input
+
 

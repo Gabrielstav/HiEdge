@@ -10,7 +10,6 @@ paths:
   # Directories for input, output, reference data, and scripts
   input_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel"
   output_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/output"
-  nchg_path: ""
 
   # Reference data files
   hg19:
@@ -26,26 +25,16 @@ pipeline_settings:
   refernce_genome: "hg19" # Reference genome used in hic pro (hg19 or hg38)
 
   # Hi-C Pro file discovery settings
-  hicpro_raw_dirname: "raw" # Directory containing raw HiC-Pro matrix output
-  hicpro_norm_dirname: "iced" # Directory containing balanced HiC-Pro matrix output and bias matrices
-
-  # Determine types of chromatin interactions to consider
-  # Only one of these should be set to True at a time
-  inter: False  # Inter- and intrachromosomal interactions
-  intra: True   # Intrachromosomal interactions only
-  mixed: False  # Mixed type of interactions (separate statistical testing for inter and intra)
+  hicpro_raw_dirname: "raw" # Directory containing raw HiC-Pro matrix output (dafault name by hicpro is always: raw)
+  hicpro_norm_dirname: "iced" # Directory containing balanced HiC-Pro matrix output and bias matrices (dafault name by hicpro is always: iced)
 
   # Execution settings
+  interaction_type: mixed  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
   threads: 8  # Number of threads to use
   executor: "multiprocessing"  # Execution mode: "multiprocessing" or "threading"
-  no_split: False  # If true, data won't be split on chromosomes
-
   iced_data: False  # If set to true, use balanced matrix files by iterative correction from Hi-C Pro (iced) instead of raw matrix files (raw)
-  interaction_type: mixed  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
   intra_resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb) for data to be processed (if empty, process all resolutions)
   inter_resolutions: 1000000 # Resolutions to consider for interchromosomal data (if empty, process all resolutions)
-  use_hicpro_bias_files: True # If true, use bias files from HiC-Pro for statistical testing
-
 
   # Filtering settings
   filter_blacklist: True  # If true, filter out interactions in blacklist regions (blacklist file path)
@@ -56,20 +45,19 @@ pipeline_settings:
     chr1: "0-1000, 20000-3500000, 1-10"
   omit_regions:
     chrx: "100-200"
-  max_interaction_range: 10000000 # Maximum interaction threshold (genomic distance in bp) to consider. Leave empty to disable.
-  min_interaction_range: 100000 # Minimum interaction threshold (genomic distance in bp) to consider. Leave empty to disable.
+  max_interaction_range: 10000000 # Maximum interaction range threshold (genomic distance in bp) to consider. Leave empty to disable.
+  min_interaction_range: 100000 # Minimum interaction range threshold (genomic distance in bp) to consider. Leave empty to disable.
 
-# Statistical settings
-  use_bias_from_hicpro: True
+  # Statistical settings
   calculate_bias: False  # Calculate bias internally, without the use of external bias files
   kr_normalization: False
   ice_normalization: False
   spline_passes: 2  # Number of spline passes
-
-
-  # Statistical settings
   fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values
   metabin_occupancy: 100  # Target interaction count for equal occupancy bins for metabinning
+  use_hicpro_bias: True  # If true, use bias files from HiC-Pro for adjusting expected interaction frequencies before statistical testing. If false, no bias files are used.
+  bias_lower_bound: 0.5  # Lower bound for bias values for filtering
+  bias_upper_bound: 2.0  # Upper bound for bias values for filtering
 
 
 dask_settings:

@@ -38,5 +38,5 @@ class RemoveBlacklistedRegions:
     def run(self) -> BlacklistOutput:
         filtered_ddf = self.filter_blacklist()
         result = filtered_ddf.compute()
-        output = BlacklistOutput(metadata=self.bedpe_output.metadata, bedpe_ddf=result)
+        output = BlacklistOutput(metadata=self.bedpe_output.metadata, data=result)
         return output

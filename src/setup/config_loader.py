@@ -48,6 +48,9 @@ class PipelineSettings:
     fdr_threshold: float
     metabin_occupancy: int
     spline_passes: int
+    bias_lower_bound: float
+    bias_upper_bound: float
+    use_hicpro_bias: bool
 
     def __post_init__(self):
         object.__setattr__(self, 'select_regions', self._parse_ranges(self.select_regions))
