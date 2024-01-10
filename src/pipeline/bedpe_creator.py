@@ -5,6 +5,7 @@ from src.setup.config_loader import Config
 from src.setup.data_structures import BedpeOutput, GroupedFiles
 import dask.dataframe as dd
 
+
 class BedpeCreator:
 
     def __init__(self, config: Config, grouped_files: GroupedFiles):
@@ -13,9 +14,21 @@ class BedpeCreator:
 
     def run(self):
         bedpe_ddf = self._make_bedpe_dask()
+
         if self.config.pipeline_settings.use_hicpro_bias:
             bias_series = self._read_and_process_bias()
             bedpe_ddf = self._merge_bedpe_and_bias(bedpe_ddf, bias_series)
+
+        interaction_calculator = InteractionCalculator(self.config, bedpe_ddf)
+        total_intra, total_inter, interaction_count_per_chromosome = interaction_calculator.calculate_total_interactions()
+
+        # Use Dask's compute method to evaluate all delayed values
+        total_intra, total_inter, interaction_count_per_chromosome = dd.compute(total_intra, total_inter, interaction_count_per_chromosome)
+
+        # Update the metadata with the interaction counts
+        self.grouped_files.metadata.total_interaction_count_intra = total_intra
+        self.grouped_files.metadata.total_interaction_count_inter = total_inter
+        self.grouped_files.metadata.interaction_count_per_chromosome = interaction_count_per_chromosome
 
         return BedpeOutput(metadata=self.grouped_files.metadata, data=bedpe_ddf)
 
@@ -32,11 +45,7 @@ class BedpeCreator:
 
         bedpe_ddf = merged_ddf[["chr_1", "start_1", "end_1", "chr_2", "start_2", "end_2", "interaction_count"]]
 
-        # Process bias data
-        bias_series = self._read_and_process_bias()
-        merged_ddf = self._merge_bedpe_and_bias(merged_ddf, bias_series)
-
-        return merged_ddf
+        return bedpe_ddf
 
     def _read_and_process_bias(self):
         # Read bias file into Dask DataFrame
@@ -68,3 +77,20 @@ class BedpeCreator:
         merged_ddf["bias_2"] = extended_bias_series.loc[merged_ddf["id2"]].values
 
         return merged_ddf
+
+class InteractionCalculator:
+    def __init__(self, config, data):
+        self.config = config
+        self.data = data  # This is the dask dataframe with interactions
+
+    def calculate_total_interactions(self):
+        chrom_counts = self.data['chr'].value_counts().compute()
+        total_bins = chrom_counts.sum()
+
+        intra_counts = (chrom_counts * (chrom_counts + 1)) // 2
+        inter_counts = chrom_counts * (total_bins - chrom_counts)
+
+        total_possible_intra = intra_counts.sum()
+        total_possible_inter = inter_counts.sum() // 2
+
+        return total_possible_intra, total_possible_inter, intra_counts.to_dict()

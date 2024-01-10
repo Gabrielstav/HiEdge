@@ -13,14 +13,16 @@ from src.setup.config_loader import Config
 
 # TODO:
 #   So we need to:
-#    Make bias reader class
-#    Make bias applier class
+#    Make bias reader class (DONE)
+#    Make bias applier class (DONE)
 #    Make spline input class (DONE)
 #    Make spline fit class (DONE)
+#    Make tot int count class (DONE)
 #    Make p/q value and confidence interval class
 #    Make the same for inter
 
 # Either we handle inter- and intra data in the same file, where the p/q value and confidence interval classes handle both cases, or we make separate files ocntaining the inter- and intra classes.
+# YES, think we hahndle both inter and intra here, and call the spline and spline input here, then we do different calculations for inter and intra.
 
 # if intra and binom:
 #   spline and p/q vals
