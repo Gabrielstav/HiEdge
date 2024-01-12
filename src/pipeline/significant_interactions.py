@@ -11,23 +11,18 @@ from src.setup.config_loader import Config
 #   So if inter, we need statistics and then calculate the p/q values and confidence intervals.
 #   If intra, we do the statistics and the input to spline, then spline, and then p/q value and confidence intervals.
 
-# TODO:
-#   So we need to:
-#    Make bias reader class (DONE)
-#    Make bias applier class (DONE)
-#    Make spline input class (DONE)
-#    Make spline fit class (DONE)
-#    Make tot int count class (DONE)
-#    Make p/q value and confidence interval class
-#    Make the same for inter
 
-# Either we handle inter- and intra data in the same file, where the p/q value and confidence interval classes handle both cases, or we make separate files ocntaining the inter- and intra classes.
-# YES, think we hahndle both inter and intra here, and call the spline and spline input here, then we do different calculations for inter and intra.
+class CalculateSignificance:
 
-# if intra and binom:
-#   spline and p/q vals
-# if inter and binom:
-#   inter stats, then binom (?) and p/q vals
-# then same checks for NCHG if we implement that, need different classes for that, or we can include the calculations in spline input
+    def __init__(self, config: Config, data):
+        self.config = config
+        self.data = data
 
+    def run(self):
+        pass
 
+    def _calculate_p_value_intra(self):
+        pass
+
+    def _calculate_p_value_inter(self):
+        pass

@@ -51,20 +51,30 @@ class PipelineSettings:
     bias_lower_bound: float
     bias_upper_bound: float
     use_hicpro_bias: bool
+    interaction_distance_filters: Dict[int, Dict[str, int]]
 
     def __post_init__(self):
-        object.__setattr__(self, 'select_regions', self._parse_ranges(self.select_regions))
-        object.__setattr__(self, 'omit_regions', self._parse_ranges(self.omit_regions))
+        object.__setattr__(self, "select_regions", self._parse_ranges(self.select_regions))
+        object.__setattr__(self, "omit_regions", self._parse_ranges(self.omit_regions))
+        object.__setattr__(self, "interaction_distance_filters", self._parse_distance_filters(self.interaction_distance_filters))
 
     @staticmethod
     def _parse_ranges(ranges_dict):
         parsed = {}
         for chrom, ranges in ranges_dict.items():
             range_list = []
-            for rg in ranges.split(','):
-                start, end = map(int, rg.split('-'))
+            for rg in ranges.split(","):
+                start, end = map(int, rg.split("-"))
                 range_list.append(GenomicRange(start, end))
             parsed[chrom] = range_list
+        return parsed
+
+    @staticmethod
+    def _parse_distance_filters(filters_dict):
+        parsed = {}
+        for resolution, ranges in filters_dict.items():
+            parsed_resolution = {key: int(value) for key, value in ranges.items()}
+            parsed[resolution] = parsed_resolution
         return parsed
 
 @dataclass(frozen=True)

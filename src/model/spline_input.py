@@ -5,6 +5,7 @@ from src.setup.config_loader import Config
 from src.setup.data_structures import BlacklistOutput, CytobandOutput, SplineInput
 import dask.dataframe as dd
 
+
 class ResolveBedpeInput:
 
     def __init__(self, config: Config, data_output):
@@ -25,6 +26,7 @@ class ResolveBedpeInput:
         # Return the data field of the resolved data class
         return self.data_output.data
 
+
 class DataPreparationController:
 
     def __init__(self, config: Config, input_data):
@@ -33,20 +35,29 @@ class DataPreparationController:
 
     def run(self):
         # Resolve the input data class based on configuration
-        input_resolver = ResolveBedpeInput(self.config, self.input_data)
-        resolved_data = input_resolver.resolve_input()
+        resolved_data = self._resolve_input()
 
         # Prepare data for spline fitting
         prepared_data = self._prepare_data_for_spline(resolved_data)
 
-        # Trigger computation
-        if isinstance(prepared_data, dd.DataFrame):
-            computed_data = prepared_data.compute()
-        else:
-            computed_data = prepared_data
+        # Filter based on genomic distances
+        filtered_data = self._filter_genomic_distances(prepared_data)
 
-        # Instantiate and return the dataclass with computed data and original metadata
+        # Trigger computation and instantiate SplineInput dataclass
+        computed_data = filtered_data.compute() if isinstance(filtered_data, dd.DataFrame) else filtered_data
         return SplineInput(metadata=self.input_data.metadata, data=computed_data)
+
+    def _resolve_input(self):
+        input_resolver = ResolveBedpeInput(self.config, self.input_data)
+        return input_resolver.resolve_input()
+
+    def _filter_genomic_distances(self, data):
+        resolution = self.input_data.metadata.resolution
+        if resolution in self.config.pipeline_settings.interaction_distance_filters:
+            distance_filter = DistanceFilter(self.config, data, resolution)
+            return distance_filter.filter_distances()
+
+        return data
 
     def _prepare_data_for_spline(self, data) -> dd.DataFrame:
         midpoint_calculator = MidpointCalculator(self.config)
@@ -60,6 +71,11 @@ class DataPreparationController:
 
         aggregator = FrequencyAggregator(self.config)
         aggregated_data = aggregator.aggregate_frequencies(binned_data)
+
+        if self.input_data.metadata.resolution in self.config.pipeline_settings.interaction_distance_filters:
+            distance_filter = DistanceFilter(self.config, aggregated_data, self.input_data.metadata.resolution)
+            filtered_data = distance_filter.filter_distances()
+            return filtered_data
 
         return aggregated_data
 
@@ -75,6 +91,7 @@ class MidpointCalculator:
         data["midpoint_2"] = ((data["start_2"] + data["end_2"]) / 2).astype("int32")
         return data.persist()
 
+
 class DistanceCalculator:
 
     def __init__(self, config: Config):
@@ -84,6 +101,7 @@ class DistanceCalculator:
     def calculate_distances(data: dd.DataFrame) -> dd.DataFrame:
         data["genomic_distance"] = abs(data["midpoint_1"] - data["midpoint_2"]).astype("int32")
         return data.persist()
+
 
 class EqualOccupancyBinner:
 
@@ -143,6 +161,7 @@ class EqualOccupancyBinner:
         bin_stats = self.calculate_bin_statistics(binned_data)
         return bin_stats
 
+
 class FrequencyAggregator:
 
     def __init__(self, config: Config):
@@ -158,4 +177,17 @@ class FrequencyAggregator:
         return aggregated_data.persist()
 
 
+class DistanceFilter:
 
+    def __init__(self, config: Config, data: dd.DataFrame, resolution: int):
+        self.config = config
+        self.data = data
+        self.resolution = resolution
+
+    def filter_distances(self) -> dd.DataFrame:
+        if self.resolution in self.config.pipeline_settings.interaction_distance_filters:
+            lower_bound = self.config.pipeline_settings.interaction_distance_filters[self.resolution]["lower"]
+            upper_bound = self.config.pipeline_settings.interaction_distance_filters[self.resolution]["upper"]
+            self.data = self.data[(self.data["genomic_distance"] >= lower_bound) & (self.data["genomic_distance"] <= upper_bound)]
+
+        return self.data

@@ -65,7 +65,7 @@ class FileFinder:
         bias_files = []
         if self.config.pipeline_settings.use_hicpro_bias_files:
             for subdir in iced_subdirectories:
-                found_files, _ = self._filter_files_on_resolution(subdir.glob('*.biases'), found_resolutions)
+                found_files, _ = self._filter_files_on_resolution(subdir.glob('*.biases'))
                 bias_files.extend(found_files)
 
         return bed_files, selected_matrix_files, bias_files

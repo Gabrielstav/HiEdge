@@ -32,29 +32,40 @@ pipeline_settings:
   interaction_type: mixed  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
   threads: 8  # Number of threads to use
   executor: "multiprocessing"  # Execution mode: "multiprocessing" or "threading"
-  iced_data: False  # If set to true, use balanced matrix files by iterative correction from Hi-C Pro (iced) instead of raw matrix files (raw)
-  intra_resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb) for data to be processed (if empty, process all resolutions)
-  inter_resolutions: 1000000 # Resolutions to consider for interchromosomal data (if empty, process all resolutions)
+  iced_data: False  # If set to true, use balanced matrix files by iterative correction (ic) from Hi-C Pro (iced matrices) instead of raw matrix files
+  intra_resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb) for data to be processed (if empty, process all resolutions for which data is available)
+  inter_resolutions: 1000000 # Resolutions to consider for interchromosomal data (if empty, process all resolutions for which data is available)
 
   # Filtering settings
   filter_blacklist: True  # If true, filter out interactions in blacklist regions (blacklist file path)
   filter_cytobands: True  # If true, filter out interactions in cytoband regions (cytobands file path)
   remove_chromosomes: ["chr2", "chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from pipeline. Empty list means no chromosomes are selected.
   select_chromosomes: [] # List of strings of chromosome(s) to include in pipeline, all chromosomes not selected are omitted. Empty list means no speciic chromosomes are selected.
-  select_regions:
-    chr1: "0-1000, 20000-3500000, 1-10"
-  omit_regions:
-    chrx: "100-200"
-  max_interaction_range: 10000000 # Maximum interaction range threshold (genomic distance in bp) to consider. Leave empty to disable.
-  min_interaction_range: 100000 # Minimum interaction range threshold (genomic distance in bp) to consider. Leave empty to disable.
 
-  # Statistical settings
+  select_specific_regions: True
+  select_regions:
+    chr1: "0-10000000"
+
+  omit_specific_regions: True
+  omit_regions:
+    chr2: "0-20000000"
+
+interaction_distance_filters:
+  1000000:
+    lower: 2000000
+    upper: 10000000
+#  500000:
+#    lower: 1000000
+#    upper: 50000000
+
+
+# Statistical settings
   calculate_bias: False  # Calculate bias internally, without the use of external bias files
   kr_normalization: False
   ice_normalization: False
   spline_passes: 2  # Number of spline passes
-  fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values
-  metabin_occupancy: 100  # Target interaction count for equal occupancy bins for metabinning
+  fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values by Benjamini-Hochberg procedure
+  metabin_occupancy: 100  # Target count for equal occupancy bins for metabinning to spline fit
   use_hicpro_bias: True  # If true, use bias files from HiC-Pro for adjusting expected interaction frequencies before statistical testing. If false, no bias files are used.
   bias_lower_bound: 0.5  # Lower bound for bias values for filtering
   bias_upper_bound: 2.0  # Upper bound for bias values for filtering

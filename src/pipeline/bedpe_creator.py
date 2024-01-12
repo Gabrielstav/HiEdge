@@ -22,12 +22,12 @@ class BedpeCreator:
         interaction_calculator = InteractionCalculator(self.config, bedpe_ddf)
         total_intra, total_inter, interaction_count_per_chromosome = interaction_calculator.calculate_total_interactions()
 
-        # Use Dask's compute method to evaluate all delayed values
+        # Evaluate delayed values
         total_intra, total_inter, interaction_count_per_chromosome = dd.compute(total_intra, total_inter, interaction_count_per_chromosome)
 
-        # Update the metadata with the interaction counts
-        self.grouped_files.metadata.total_interaction_count_intra = total_intra
-        self.grouped_files.metadata.total_interaction_count_inter = total_inter
+        # Update metadata with interaction counts
+        self.grouped_files.metadata.max_possible_interaction_count_intra = total_intra
+        self.grouped_files.metadata.max_possible__interaction_count_inter = total_inter
         self.grouped_files.metadata.interaction_count_per_chromosome = interaction_count_per_chromosome
 
         return BedpeOutput(metadata=self.grouped_files.metadata, data=bedpe_ddf)
@@ -51,7 +51,7 @@ class BedpeCreator:
         # Read bias file into Dask DataFrame
         bias_series = dd.read_csv(self.grouped_files.metadata.bias_file_path, header=None, squeeze=True)
 
-        # Replace "nan" string with -1
+        # Replace "nan" string with -1 bias
         bias_series = bias_series.mask(bias_series == "nan", -1).astype(float)
         lower_bound = self.config.pipeline_settings.bias_lower_bound
         upper_bound = self.config.pipeline_settings.bias_upper_bound
@@ -65,7 +65,7 @@ class BedpeCreator:
         # Check if extending the bias series is necessary
         if len(bias_series) < (merged_ddf["id1"].max() + 1):
 
-            # TODO: Log this later
+            # TODO: Log this later, print some stuff to console if mismatch in lengths is detected and log which loci are missing
             # Extend bias_series to match the length of bedpe_ddf (BED file length)
             extended_bias_series = bias_series.reindex(range(merged_ddf['id1'].max() + 1), fill_value=-1)
         else:

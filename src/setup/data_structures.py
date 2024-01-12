@@ -12,8 +12,8 @@ class Metadata:
     resolution: int
     interaction_type: Optional[str] = None
     bias_file_path: Optional[Path] = None
-    total_interaction_count_intra: Optional[int] = None
-    total_interaction_count_inter: Optional[int] = None
+    max_possible_interaction_count_intra: Optional[int] = None
+    max_possible__interaction_count_inter: Optional[int] = None
     interaction_count_per_chromosome: Optional[dict] = None
 
 @dataclass
