@@ -18,7 +18,7 @@ import threading as threading
 from collections import defaultdict
 
 
-# Call each run method from each class in the pipeline,
+# Call each run method from each class in the filtering,
 # first filtering, then processing, then statistical testing then plotting/output
 
 

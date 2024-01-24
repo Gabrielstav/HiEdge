@@ -2,7 +2,7 @@
 
 # Import modules
 from src.setup.config_loader import Config
-from src.pipeline.bedpe_creator import BedpeOutput
+from src.filtering.bedpe_creator import BedpeOutput
 from src.setup.data_structures import Metadata, FilteringOutput
 from dask import dataframe as dd
 import pandas as pd

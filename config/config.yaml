@@ -31,7 +31,6 @@ pipeline_settings:
   # Execution settings
   interaction_type: mixed  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
   threads: 8  # Number of threads to use
-  executor: "multiprocessing"  # Execution mode: "multiprocessing" or "threading"
   iced_data: False  # If set to true, use balanced matrix files by iterative correction (ic) from Hi-C Pro (iced matrices) instead of raw matrix files
   intra_resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb) for data to be processed (if empty, process all resolutions for which data is available)
   inter_resolutions: 1000000 # Resolutions to consider for interchromosomal data (if empty, process all resolutions for which data is available)
@@ -39,8 +38,8 @@ pipeline_settings:
   # Filtering settings
   filter_blacklist: True  # If true, filter out interactions in blacklist regions (blacklist file path)
   filter_cytobands: True  # If true, filter out interactions in cytoband regions (cytobands file path)
-  remove_chromosomes: ["chr2", "chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from pipeline. Empty list means no chromosomes are selected.
-  select_chromosomes: [] # List of strings of chromosome(s) to include in pipeline, all chromosomes not selected are omitted. Empty list means no speciic chromosomes are selected.
+  remove_chromosomes: ["chr2", "chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from filtering. Empty list means no chromosomes are selected.
+  select_chromosomes: [] # List of strings of chromosome(s) to include in filtering, all chromosomes not selected are omitted. Empty list means no speciic chromosomes are selected.
 
   select_specific_regions: True
   select_regions:
@@ -58,7 +57,6 @@ interaction_distance_filters:
 #    lower: 1000000
 #    upper: 50000000
 
-
 # Statistical settings
   calculate_bias: False  # Calculate bias internally, without the use of external bias files
   kr_normalization: False
@@ -69,6 +67,8 @@ interaction_distance_filters:
   use_hicpro_bias: True  # If true, use bias files from HiC-Pro for adjusting expected interaction frequencies before statistical testing. If false, no bias files are used.
   bias_lower_bound: 0.5  # Lower bound for bias values for filtering
   bias_upper_bound: 2.0  # Upper bound for bias values for filtering
+  normalize_inter_expected_frequency: True  # If true, normalize expected interaction count by total interaction count for interchromosomal interactions
+  normalize_intra_expected_frequency: True  # If true, normalize expected interaction count by total interaction count for intrachromosomal interactions
 
 
 dask_settings:
@@ -78,7 +78,7 @@ dask_settings:
 
   # Scheduler
   work-stealing: True
-  default: 'threads'  # or 'processes' or 'distributed'
+  default: "threads"  # or 'processes' or 'distributed'
 
   # Memory
   target: 0.9  # fraction of memory to try to stay beneath
@@ -86,6 +86,4 @@ dask_settings:
   pause: 0.98  # fraction at which we halt computation and warn
   terminate: 1.0  # fraction at which we kill the worker
   no_termination: True
-
-# Add rest of the options later on (log fold, NCHG stuff, chromosomes etc)
 

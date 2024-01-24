@@ -28,7 +28,6 @@ class PipelineSettings:
     reference_genome: str
     hicpro_raw_dirname: str
     hicpro_norm_dirname: str
-    use_hicpro_bias_files: bool
     inter: bool
     intra: bool
     mixed: bool
@@ -52,6 +51,8 @@ class PipelineSettings:
     bias_upper_bound: float
     use_hicpro_bias: bool
     interaction_distance_filters: Dict[int, Dict[str, int]]
+    normalize_inter_expected_frequency: bool
+    normalize_intra_expected_frequency: bool
 
     def __post_init__(self):
         object.__setattr__(self, "select_regions", self._parse_ranges(self.select_regions))
