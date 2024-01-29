@@ -18,11 +18,20 @@ class FilteringController:
         self.config = config
         self.data = data
         self.metadata = metadata
+        self.blacklist_filter = FilterBlacklist(self.config)
+        self.cytoband_filter = FilterCytobands(self.config)
 
     def run_filters(self):
-        # Split data and instantiate FilteringOutput
-        splitter = SplitByInteractionType(self.config, BedpeOutput(data=self.data, metadata=self.metadata))
-        intra_output, inter_output = splitter.split_datasets_by_interaction_type()
+
+        # Slit datasets by interaction type (inter and intra)
+        splitter = SplitByInteractionType(self.data)
+        intra_df, inter_df = splitter.split_datasets_by_interaction_type()
+
+        # Instantiate metadata and output for intra and inter data
+        intra_metadata = self._instantiate_metadata("intra")
+        inter_metadata = self._instantiate_metadata("inter")
+        intra_output = self._instantiate_output(intra_df, intra_metadata)
+        inter_output = self._instantiate_output(inter_df, inter_metadata)
 
         # Apply chromosome filtering if specified
         if self.config.pipeline_settings.remove_chromosomes or self.config.pipeline_settings.select_chromosomes:
@@ -45,23 +54,31 @@ class FilteringController:
             intra_output.data = interaction_distance_filter.filter_data(intra_output.data)
             inter_output.data = interaction_distance_filter.filter_data(inter_output.data)
 
+        # Apply blacklist filtering if specified
+        if self.config.pipeline_settings.filter_blacklist:
+            intra_output.data = self.blacklist_filter.filter_blacklist(intra_output.data)
+            inter_output.data = self.blacklist_filter.filter_blacklist(inter_output.data)
+
+        # Apply cytoband filtering if specified
+        if self.config.pipeline_settings.filter_cytobands:
+            intra_output.data = self.cytoband_filter.filter_cytobands(intra_output.data)
+            inter_output.data = self.cytoband_filter.filter_cytobands(inter_output.data)
+
         # Apply bias filtering if specified
         if self.config.pipeline_settings.use_hicpro_bias:
             bias_filter = FilterBias()
             intra_output.data = bias_filter.filter_bias(intra_output.data)
             inter_output.data = bias_filter.filter_bias(inter_output.data)
 
-        # Filter on blacklist if specified
-        if self.config.pipeline_settings.filter_blacklist:
-            blacklist_filter = FilterBlacklist(self.config)
-            intra_output.data = blacklist_filter.filter_blacklist(intra_output.data)  # TODO: Fix cytoband and blacklist classes
-            inter_output.data = blacklist_filter.filter_blacklist(inter_output.data)
-
-        # Filter on cytobands if specified
-        if self.config.pipeline_settings.filter_cytobands:
-            cytoband_filter = FilterCytobands(self.config)
-            intra_output.data = cytoband_filter.filter_cytobands(intra_output.data)
-            inter_output.data = cytoband_filter.filter_cytobands(inter_output.data)
-
         # Return the potentially modified FilteringOutput instances
         return intra_output, inter_output
+
+    def _instantiate_metadata(self, interaction_type):
+        return Metadata(experiment=self.metadata.experiment,
+                        resolution=self.metadata.resolution,
+                        interaction_type=interaction_type,
+                        bias_file_path=self.metadata.bias_file_path)
+
+    @staticmethod
+    def _instantiate_output(data, metadata):
+        return FilteringOutput(data=data, metadata=metadata)

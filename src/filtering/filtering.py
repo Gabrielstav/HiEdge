@@ -7,51 +7,17 @@ from src.setup.data_structures import Metadata, FilteringOutput
 from dask import dataframe as dd
 import pandas as pd
 
-
-class FilteringController:
-
-    def __init__(self, config: Config, data: dd.DataFrame, metadata: Metadata):
-        self.config = config
-        self.data = data
-        self.metadata = metadata
-
-    def run_filters(self):
-        # Split data and instantiate FilteringOutput
-        splitter = SplitByInteractionType(self.config, BedpeOutput(data=self.data, metadata=self.metadata))
-        intra_output, inter_output = splitter.split_datasets_by_interaction_type()
-
-        # Apply chromosome filtering if specified
-        if self.config.pipeline_settings.remove_chromosomes or self.config.pipeline_settings.select_chromosomes:
-            chromosome_filter = FilterChromosomes(self.config)
-            intra_output.data = chromosome_filter.filter_data(intra_output.data)
-            inter_output.data = chromosome_filter.filter_data(inter_output.data)
-
-        # Apply range filtering if specified
-        range_filter = FilterRanges(self.config)
-        if self.config.pipeline_settings.omit_regions:
-            intra_output.data = range_filter.filter_omit_regions(intra_output.data)
-            inter_output.data = range_filter.filter_omit_regions(inter_output.data)
-        elif self.config.pipeline_settings.select_regions:
-            intra_output.data = range_filter.filter_select_regions(intra_output.data)
-            inter_output.data = range_filter.filter_select_regions(inter_output.data)
-
-        # Apply interaction distance filtering if specified
-        if self.config.pipeline_settings.min_interaction_range or self.config.pipeline_settings.max_interaction_range:
-            interaction_distance_filter = FilterInteractionDistances(self.config)
-            intra_output.data = interaction_distance_filter.filter_data(intra_output.data)
-            inter_output.data = interaction_distance_filter.filter_data(inter_output.data)
-
-        # Apply bias filtering if specified
-        if self.config.pipeline_settings.use_hicpro_bias:
-            bias_filter = FilterBias()
-            intra_output.data = bias_filter.filter_bias(intra_output.data)
-            inter_output.data = bias_filter.filter_bias(inter_output.data)
-
-        # Return the potentially modified FilteringOutput instances
-        return intra_output, inter_output
-
-
 class SplitByInteractionType:
+
+    def __init__(self, bedpe_ddf: dd.DataFrame):
+        self.bedpe_ddf = bedpe_ddf
+
+    def split_datasets_by_interaction_type(self):
+        intra_df = self.bedpe_ddf[self.bedpe_ddf["chr_1"] == self.bedpe_ddf["chr_2"]]
+        inter_df = self.bedpe_ddf[self.bedpe_ddf["chr_1"] != self.bedpe_ddf["chr_2"]]
+        return intra_df, inter_df
+
+class SplitByInteractionType_old:
 
     def __init__(self, config: Config, bedpe_output: BedpeOutput):
         self.config = config
@@ -64,12 +30,12 @@ class SplitByInteractionType:
 
         intra_metadata = Metadata(experiment=self.bedpe_metadata.experiment,
                                   resolution=self.bedpe_metadata.resolution,
-                                  interaction_type='intra',
+                                  interaction_type="intra",
                                   bias_file_path=self.bedpe_metadata.bias_file_path)
 
         inter_metadata = Metadata(experiment=self.bedpe_metadata.experiment,
                                   resolution=self.bedpe_metadata.resolution,
-                                  interaction_type='inter',
+                                  interaction_type="inter",
                                   bias_file_path=self.bedpe_metadata.bias_file_path)
 
         intra_output = FilteringOutput(data=intra_df, metadata=intra_metadata)
@@ -87,37 +53,37 @@ class FilterChromosomes:
 
     def _determine_chromosome_action(self):
         if self.config.pipeline_settings.select_chromosomes:
-            return 'select'
+            return "select"
         elif self.config.pipeline_settings.remove_chromosomes:
-            return 'remove'
+            return "remove"
         else:
             return None
 
     def _get_chromosomes(self):
-        return self.config.pipeline_settings.select_chromosomes if self.chromosome_action == 'select' \
+        return self.config.pipeline_settings.select_chromosomes if self.chromosome_action == "select" \
             else self.config.pipeline_settings.remove_chromosomes
 
     def filter_data(self, data: dd.DataFrame) -> dd.DataFrame:
-        if self.chromosome_action == 'select':
+        if self.chromosome_action == "select":
             return self._filter_select_chromosomes(data)
-        elif self.chromosome_action == 'remove':
+        elif self.chromosome_action == "remove":
             return self._filter_remove_chromosomes(data)
         return data
 
     def _filter_select_chromosomes(self, data: dd.DataFrame) -> dd.DataFrame:
-        is_intra = data['interaction_type'] == 'intra'
-        is_inter = data['interaction_type'] == 'inter'
-        in_chromosomes = data['chr_1'].isin(self.chromosomes) | data['chr_2'].isin(self.chromosomes)
+        is_intra = data["interaction_type"] == "intra"
+        is_inter = data["interaction_type"] == "inter"
+        in_chromosomes = data["chr_1"].isin(self.chromosomes) | data["chr_2"].isin(self.chromosomes)
 
-        return data[(is_intra & (data['chr_1'].isin(self.chromosomes))) |
+        return data[(is_intra & (data["chr_1"].isin(self.chromosomes))) |
                     (is_inter & in_chromosomes)]
 
     def _filter_remove_chromosomes(self, data: dd.DataFrame) -> dd.DataFrame:
-        is_intra = data['interaction_type'] == 'intra'
-        is_inter = data['interaction_type'] == 'inter'
-        not_in_chromosomes = ~data['chr_1'].isin(self.chromosomes) & ~data['chr_2'].isin(self.chromosomes)
+        is_intra = data["interaction_type"] == "intra"
+        is_inter = data["interaction_type"] == "inter"
+        not_in_chromosomes = ~data["chr_1"].isin(self.chromosomes) & ~data["chr_2"].isin(self.chromosomes)
 
-        return data[(is_intra & (~data['chr_1'].isin(self.chromosomes))) |
+        return data[(is_intra & (~data["chr_1"].isin(self.chromosomes))) |
                     (is_inter & not_in_chromosomes)]
 
 
@@ -132,15 +98,15 @@ class FilterRanges:
 
     def _determine_region_type(self):
         if self.config.pipeline_settings.select_regions:
-            return 'select'
+            return "select"
         elif self.config.pipeline_settings.omit_regions:
-            return 'omit'
+            return "omit"
         else:
             return None
 
     def _transform_regions(self):
-        regions = self.config.pipeline_settings.select_regions if self.region_type == 'select' else self.config.pipeline_settings.omit_regions
-        rows = [{'chromosome': chromosome, 'start': genomic_range.start, 'end': genomic_range.end}
+        regions = self.config.pipeline_settings.select_regions if self.region_type == "select" else self.config.pipeline_settings.omit_regions
+        rows = [{"chromosome": chromosome, "start": genomic_range.start, "end": genomic_range.end}
                 for chromosome, ranges in regions.items() for genomic_range in ranges]
         return pd.DataFrame(rows)
 
@@ -167,8 +133,8 @@ class FilterRanges:
         for chromosome, regions in region_dict.items():
             for start, end in regions:
                 overlap_cond = (
-                        ((df['chr_1'] == chromosome) & (df['start_1'] <= end) & (df['end_1'] >= start)) |
-                        ((df['chr_2'] == chromosome) & (df['start_2'] <= end) & (df['end_2'] >= start))
+                        ((df["chr_1"] == chromosome) & (df["start_1"] <= end) & (df["end_1"] >= start)) |
+                        ((df["chr_2"] == chromosome) & (df["start_2"] <= end) & (df["end_2"] >= start))
                 )
                 omit_series = omit_series | overlap_cond
         return ~omit_series
@@ -197,14 +163,14 @@ class FilterInteractionDistances:
         self.max_distance = self.config.pipeline_settings.max_interaction_range
 
     def filter_data(self, data: dd.DataFrame) -> dd.DataFrame:
-        return data[(data['genomic_distance'] >= self.min_distance) & (data['genomic_distance'] <= self.max_distance)]
+        return data[(data["genomic_distance"] >= self.min_distance) & (data["genomic_distance"] <= self.max_distance)]
 
 
 class FilterBias:
     @staticmethod
     def filter_bias(data: dd.DataFrame) -> dd.DataFrame:
         # Filter out interactions where either bias value is -1
-        return data[(data['bias_1'] != -1) & (data['bias_2'] != -1)]
+        return data[(data["bias_1"] != -1) & (data["bias_2"] != -1)]
 
 
 

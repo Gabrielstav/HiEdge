@@ -46,3 +46,9 @@ class CytobandOutput:
 class SplineInput:
     metadata: Metadata
     data: dd.DataFrame
+
+@dataclass
+class StatisticsOutput:
+    metadata: Metadata
+    data: dd.DataFrame
+

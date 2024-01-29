@@ -2,25 +2,12 @@
 
 # Import modules
 from src.setup.config_loader import Config
-from src.setup.data_structures import BlacklistOutput, CytobandOutput, FilteringOutput
 from src.reference_handling.reference_parser import ReferenceFileParser as ReferenceParser
 import pybedtools as pbt
 import pandas as pd
+import dask.dataframe as dd
 
-
-class CytobandInputResolver:
-
-    def __init__(self, filtering_output, blacklist_output):
-        self.filtering_output = filtering_output
-        self.blacklist_output = blacklist_output
-
-    def resolve_input(self):
-        if isinstance(self.blacklist_output, BlacklistOutput):
-            return self.blacklist_output
-        elif not isinstance(self.blacklist_output, BlacklistOutput):
-            return self.filtering_output
-        else:
-            raise ValueError("Invalid data class provided: Either FilteringOutput or BlacklistOutput.")
+# mb use bedpe schema when returning data
 
 class CytobandHelper:
     @staticmethod
@@ -31,31 +18,22 @@ class CytobandHelper:
         acen_regions = cytoband_bedtool.filter(lambda x: x[4] == "acen").saveas()
         return acen_regions
 
-
 class RemoveCytobandRegions:
-    def __init__(self, config: Config, data_input):
-        self.config = config
-        self.data_ddf = data_input.bedpe_ddf
-        self.metadata = data_input.metadata
-        self.cytoband_regions = CytobandHelper.get_cytoband_regions(config)
-        self.window_size = self.metadata.resolution
 
-    def _filter_single_partition(self, partition: pd.DataFrame) -> pd.DataFrame:
+    def __init__(self, config: Config):
+        self.config = config
+        self.cytoband_regions = CytobandHelper.get_cytoband_regions(config)
+
+    def filter_single_partition(self, partition: pd.DataFrame) -> pd.DataFrame:
         pbt_partition = pbt.BedTool.from_dataframe(partition)
-        filtered_partition = pbt_partition.window(self.cytoband_regions, w=self.window_size, v=True)
+        filtered_partition = pbt_partition.window(self.cytoband_regions, v=True)
         filtered_partition_df = filtered_partition.to_dataframe()
-        filtered_partition_df.columns = self.data_ddf.columns
         return filtered_partition_df
 
-    def filter_cytobands(self):
-        filtered_partitions = self.data_ddf.map_partitions(
-            self._filter_single_partition,
-            meta=self.data_ddf._meta
-        )
+    def filter_cytobands(self, bedpe_ddf: dd.DataFrame) -> dd.DataFrame:
+        filtered_partitions = bedpe_ddf.map_partitions(self.filter_single_partition)
         return filtered_partitions
 
-    def run(self) -> CytobandOutput:
-        filtered_ddf = self.filter_cytobands()
-        result = filtered_ddf.compute()
-        output = CytobandOutput(metadata=self.metadata, bedpe_ddf=result)
-        return output
+
+
+

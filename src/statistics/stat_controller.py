@@ -11,53 +11,56 @@ from src.setup.config_loader import Config
 
 class StatisticalTestController:
 
-    def __init__(self, config: Config, data):
+    def __init__(self, config: Config, data: dd.DataFrame, metadata: Metadata):
         self.config = config
         self.data = data
-        self.p_value_calculator = IntraPValueCalculator(config, data)
-        self.fdr_calculator = None  # To be instantiated later with p-value results
+        self.metadata = metadata
 
     def run_statistical_tests(self):
+        # Depending on interaction type, run different statistical tests
+        if self.metadata.interaction_type == "intra":
+            return self._run_intra_tests()
+        elif self.metadata.interaction_type == "inter":
+            return self._run_inter_tests()
+        else:
+            raise ValueError("Unknown interaction type")
 
-        self.data = self.p_value_calculator.run()
+    def _run_intra_tests(self):
+        # Step 1: Compute intra statistics and prepare data for spline fitting
+        intra_statistics = IntraStatistics(self.config, self.data)
+        prepared_data = intra_statistics.prepare_data()
 
-        self.fdr_calculator = FDRCalculator(self.config, self.data)
-        fdr_results = self.fdr_calculator.run()
+        # Step 2: Fit spline to the prepared data
+        spline_fitter = SplineFitter(prepared_data, self.config)
+        spline = spline_fitter.fit()
 
-        # Combine p-value and FDR results
-        combined_results = self.combine_results(self.data, fdr_results)
+        # Step 3: Calculate p-values using the fitted spline
+        p_value_calculator = IntraPValueCalculator(prepared_data, spline, self.metadata.max_possible_interaction_count_intra, self.config)
+        p_value_results = p_value_calculator.run()
 
-        return combined_results
+        # Step 4: Calculate FDR
+        fdr_calculator = FDRCalculator(self.config, p_value_results)
+        fdr_results = fdr_calculator.run()
 
-    @staticmethod
-    def combine_results(data, fdr_results):
-        # Assuming both dataframes are aligned and have the same index
-        combined_data = data.copy()
-        combined_data["adjusted_p_value"] = fdr_results["adjusted_p"]
-        return combined_data
+        # Step 5: Combine results and return
+        return StatisticsOutput(metadata=self.metadata, data=fdr_results)
 
-class StatisticsController:
+    def _run_inter_tests(self):
+        # Step 1: Compute inter statistics
+        inter_statistics = InterStatistics(self.config, self.data)
+        statistics_results = inter_statistics.compute_statistics()
 
-    def __init__(self, config, data, interaction_type):
-        self.config = config
-        self.data = data
-        self.interaction_type = interaction_type
+        # Step 2: Calculate p-values for interchromosomal data
+        p_value_calculator = InterPValueCalculator(self.config, statistics_results, self.metadata.max_possible__interaction_count_inter)
+        p_value_results = p_value_calculator.run()
 
-    def run(self):
-        if self.interaction_type == "intra":
-            return self._process_intra_data()
-        elif self.interaction_type == "inter":
-            return self._process_inter_data()
+        # Step 3: Calculate FDR
+        fdr_calculator = FDRCalculator(self.config, p_value_results)
+        fdr_results = fdr_calculator.run()
 
-    def _process_intra_data(self):
-        intra_stats = IntraStatisticsCalculator(self.config, self.data).calculate_statistics()
-        spline = SplineFitter(intra_stats).fit_spline()
-        p_values = IntraPValueCalculator(intra_stats, spline).calculate_p_values()
-        fdr_results = IntraFDRCalculator(self.config, p_values).calculate_fdr()
-        return fdr_results
+        # Step 4: Combine results and return
+        return StatisticsOutput(metadata=self.metadata, data=fdr_results)
 
-    def _process_inter_data(self):
-        inter_stats = InterStatisticsCalculator(self.config, self.data).calculate_statistics()
-        p_values = InterPValueCalculator(inter_stats).calculate_p_values()
-        fdr_results = InterFDRCalculator(self.config, p_values).calculate_fdr()
-        return fdr_results
+# Data class for statistical test outputs
+
+
