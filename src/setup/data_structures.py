@@ -23,7 +23,7 @@ class GroupedFiles:
     matrix_file: Path
 
 @dataclass
-class BedpeOutput:
+class InteractionOutput:
     metadata: Metadata
     data: dd.DataFrame
 
@@ -32,15 +32,9 @@ class FilteringOutput:
     metadata: Metadata
     data: dd.DataFrame
 
-@dataclass
-class BlacklistOutput:
-    metadata: Metadata
-    data: dd.DataFrame
 
-@dataclass
-class CytobandOutput:
-    metadata: Metadata
-    data: dd.DataFrame
+
+
 
 @dataclass
 class SplineInput:
