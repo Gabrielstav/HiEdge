@@ -33,7 +33,3 @@ class RemoveCytobandRegions:
     def filter_cytobands(self, bedpe_ddf: dd.DataFrame) -> dd.DataFrame:
         filtered_partitions = bedpe_ddf.map_partitions(self.filter_single_partition)
         return filtered_partitions
-
-
-
-

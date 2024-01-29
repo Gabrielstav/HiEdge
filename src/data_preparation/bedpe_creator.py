@@ -65,7 +65,7 @@ class BedpeCreator:
         # Check if extending the bias series is necessary
         if len(bias_series) < (merged_ddf["id1"].max() + 1):
 
-            # TODO: Log this later, if mismatch in lengths is detected and log which loci are missing
+            # TODO: if mismatch in lengths are detected log which loci are missing
             # Extend bias_series to match the length of bedpe_ddf (BED file length)
             extended_bias_series = bias_series.reindex(range(merged_ddf['id1'].max() + 1), fill_value=-1)
         else:

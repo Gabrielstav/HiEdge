@@ -15,7 +15,6 @@ class BlacklistHelper:
         reference_parser = ReferenceParser(config)
         return reference_parser.parse_blacklist_file()
 
-
 class RemoveBlacklistedRegions:
     def __init__(self, config: Config):
         self.config = config
@@ -30,4 +29,3 @@ class RemoveBlacklistedRegions:
     def filter_blacklist(self, bedpe_ddf: dd.DataFrame) -> dd.DataFrame:
         filtered_partitions = bedpe_ddf.map_partitions(self.filter_single_partition)
         return filtered_partitions
-

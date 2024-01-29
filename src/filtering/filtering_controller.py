@@ -3,7 +3,9 @@
 # Import modules
 from src.setup.config_loader import Config
 from src.setup.data_structures import FilteringOutput, Metadata
-from src.filtering.filtering import SplitByInteractionType, FilterChromosomes, FilterRanges, FilterInteractionDistances, FilterBias
+from src.filtering.chromosome_filter import FilterChromosomes
+from src.filtering.range_filter import FilterRanges
+from src.filtering.filtering_utils import SplitByInteractionType, FilterInteractionDistances, FilterBias
 from src.filtering.blacklist_filter import RemoveBlacklistedRegions
 from src.filtering.cytobands_filter import RemoveCytobandRegions
 from dask import dataframe as dd
