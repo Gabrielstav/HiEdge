@@ -16,6 +16,7 @@ class InteractionCreator:
 
     def run(self):
         interaction_ddf = self.create_interaction_dataframe()
+        print(interaction_ddf.head())  # TODO: Remove after debugging
 
         if self.config.pipeline_settings.use_hicpro_bias:
             bias_series = BiasMerger.merge_bias(self.grouped_files, interaction_ddf)
@@ -29,7 +30,7 @@ class InteractionCreator:
 
         # update metadata with interaction counts
         self.grouped_files.metadata.max_possible_interaction_count_intra = total_intra
-        self.grouped_files.metadata.max_possible__interaction_count_inter = total_inter
+        self.grouped_files.metadata.max_possible_interaction_count_inter = total_inter
         self.grouped_files.metadata.interaction_count_per_chromosome = interaction_count_per_chromosome
 
         return InteractionOutput(metadata=self.grouped_files.metadata, data=interaction_ddf)

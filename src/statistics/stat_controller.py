@@ -51,7 +51,7 @@ class StatisticalTestController:
         statistics_results = inter_statistics.compute_statistics()
 
         # Step 2: Calculate p-values for interchromosomal data
-        p_value_calculator = InterPValueCalculator(self.config, statistics_results, self.metadata.max_possible__interaction_count_inter)
+        p_value_calculator = InterPValueCalculator(self.config, statistics_results, self.metadata.max_possible_interaction_count_inter)
         p_value_results = p_value_calculator.run()
 
         # Step 3: Calculate FDR

@@ -5,25 +5,6 @@ from src.setup.config_loader import Config
 from src.setup.data_structures import FilteringOutput, BlacklistOutput, CytobandOutput
 import dask.dataframe as dd
 
-class ResolveBedpeInput:
-
-    def __init__(self, config: Config, data_output):
-        self.config = config
-        self.data_output = data_output
-
-    def resolve_input(self):
-        # Mapping configuration options to data classes
-        data_class_mapping = {
-            "cytoband": (CytobandOutput, self.config.pipeline_settings.filter_cytobands),
-            "blacklist": (BlacklistOutput, self.config.pipeline_settings.filter_blacklist)
-        }
-
-        for data_class, (output_type, use_filter) in data_class_mapping.items():
-            if isinstance(self.data_output, output_type) and use_filter:
-                return output_type
-
-        # Return the data field of the resolved data class
-        return self.data_output.data
 
 class DataPreparationController:
 
@@ -32,11 +13,8 @@ class DataPreparationController:
         self.input_data = input_data
 
     def run(self):
-        # Resolve the input data class based on config
-        resolved_data = ResolveBedpeInput(self.config, self.input_data).resolve_input()
-
         # Calculate inter stats
-        inter_stats = InterStatisticsCalculator(resolved_data, self.config).compute_inter_stats()
+        inter_stats = InterStatisticsCalculator(self.input_data, self.config).compute_inter_stats()
 
         return inter_stats
 
@@ -45,6 +23,9 @@ class InterStatisticsCalculator:
     def __init__(self, data: dd.DataFrame, config: Config):
         self.data = data
         self.config = config
+
+
+
 
     def compute_inter_stats(self):
         # Filter for interchromosomal interactions

@@ -2,30 +2,8 @@
 
 # Import modules
 from src.setup.config_loader import Config
-from src.setup.data_structures import BlacklistOutput, CytobandOutput, SplineInput
+from src.setup.data_structures import FilteringOutput, SplineInput
 import dask.dataframe as dd
-
-
-class ResolveBedpeInput:
-
-    def __init__(self, config: Config, data_output):
-        self.config = config
-        self.data_output = data_output
-
-    def resolve_input(self):
-        # Mapping configuration options to data classes
-        data_class_mapping = {
-            "cytoband": (CytobandOutput, self.config.pipeline_settings.filter_cytobands),
-            "blacklist": (BlacklistOutput, self.config.pipeline_settings.filter_blacklist)
-        }
-
-        for data_class, (output_type, use_filter) in data_class_mapping.items():
-            if isinstance(self.data_output, output_type) and use_filter:
-                return output_type
-
-        # Return the data field of the resolved data class
-        return self.data_output.data
-
 
 class DataPreparationController:
 
@@ -34,11 +12,8 @@ class DataPreparationController:
         self.input_data = input_data
 
     def run(self):
-        # Resolve the input data class based on configuration
-        resolved_data = self._resolve_input()
-
         # Prepare data for spline fitting
-        prepared_data = self._prepare_data_for_spline(resolved_data)
+        prepared_data = self._prepare_data_for_spline(self.input_data)
 
         # Filter based on genomic distances
         filtered_data = self._filter_genomic_distances(prepared_data)
@@ -46,10 +21,6 @@ class DataPreparationController:
         # Trigger computation and instantiate SplineInput dataclass
         computed_data = filtered_data.compute() if isinstance(filtered_data, dd.DataFrame) else filtered_data
         return SplineInput(metadata=self.input_data.metadata, data=computed_data)
-
-    def _resolve_input(self):
-        input_resolver = ResolveBedpeInput(self.config, self.input_data)
-        return input_resolver.resolve_input()
 
     def _filter_genomic_distances(self, data):
         resolution = self.input_data.metadata.resolution
@@ -129,7 +100,7 @@ class EqualOccupancyBinner:
 
     def apply_tiebreak_condition(self):
         # Identify rows where the tiebreak condition applies
-        self.input_data['needs_tiebreak'] = (
+        self.input_data["needs_tiebreak"] = (
                 (self.input_data["genomic_distance"] == self.input_data["genomic_distance"].shift(1)) &
                 (self.input_data["bin_label"] != self.input_data["bin_label"].shift(1))
         )
