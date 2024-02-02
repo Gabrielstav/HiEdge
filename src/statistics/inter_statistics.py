@@ -2,7 +2,6 @@
 
 # Import modules
 from src.setup.config_loader import Config
-from src.setup.data_structures import FilteringOutput, BlacklistOutput, CytobandOutput
 import dask.dataframe as dd
 
 
@@ -23,9 +22,6 @@ class InterStatisticsCalculator:
     def __init__(self, data: dd.DataFrame, config: Config):
         self.data = data
         self.config = config
-
-
-
 
     def compute_inter_stats(self):
         # Filter for interchromosomal interactions

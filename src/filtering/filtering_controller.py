@@ -33,6 +33,7 @@ class FilteringController:
 
         # Apply the filters on intra_output and inter_output
         self._apply_chromosome_filtering(intra_output, inter_output)
+        self._update_chromosomes_present_metadata()
         self._apply_range_filtering(intra_output, inter_output)
         self._apply_interaction_distance_filtering(intra_output, inter_output)
         self._apply_blacklist_filtering(intra_output, inter_output)
@@ -90,6 +91,17 @@ class FilteringController:
                         resolution=self.metadata.resolution,
                         interaction_type=interaction_type,
                         bias_file_path=self.metadata.bias_file_path)
+
+    def _update_chromosomes_present_metadata(self, intra_metadata, inter_metadata):
+        if self.config.pipeline_settings.remove_chromosomes:
+            all_chromosomes = set(intra_metadata.interaction_count_per_chromosome.keys())
+            removed_chromosomes = set(self.config.pipeline_settings.remove_chromosomes)
+            remaining_chromosomes = list(all_chromosomes - removed_chromosomes)
+            intra_metadata.chromosomes_present = remaining_chromosomes
+            inter_metadata.chromosomes_present = remaining_chromosomes
+        elif self.config.pipeline_settings.select_chromosomes:
+            intra_metadata.chromosomes_present = self.config.pipeline_settings.select_chromosomes
+            inter_metadata.chromosomes_present = self.config.pipeline_settings.select_chromosomes
 
     @staticmethod
     def _instantiate_output(data, metadata):

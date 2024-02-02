@@ -13,14 +13,18 @@ from scipy.stats import binom
 # TODO:
 #  later: implement nchg test for intra p-vals
 
+
 class IntraPValueCalculator:
-    def __init__(self, data, spline, total_interactions, config: Config):
+    def __init__(self, data, spline, metadata, total_interactions, config: Config):
         self.data = data
+        self.metadata = metadata
         self.spline = spline
         self.total_interactions = total_interactions
         self.config = config
 
     def run(self):
+        if self.config.pipeline_settings.normalize_intra_expected_frequency:
+            self._recalculate_total_possible_interactions()
         self._calculate_expected_frequency()
         self._calculate_p_values()
         return self.data[["genomic_distance", "interaction_count", "expected_frequency", "p_value"]]
@@ -50,6 +54,15 @@ class IntraPValueCalculator:
             meta=("x", "float64")
         )
 
+    def _recalculate_total_possible_interactions(self):
+        # Use self.metadata.chromosomes_present to recalculate total_possible_interactions after filtering chromosomes
+        total_possible_interactions = sum(
+            self.metadata.interaction_count_per_chromosome[chrom]
+            for chrom in self.metadata.chromosomes_present
+        )
+        self.metadata.max_possible_interaction_count_intra = total_possible_interactions
+
+
 class InterPValueCalculator:
     def __init__(self, config: Config, data, metadata, inter_prob, total_possible_interactions):
         self.config = config
@@ -59,6 +72,8 @@ class InterPValueCalculator:
         self.total_possible_interactions = total_possible_interactions
 
     def run(self):
+        if self.config.pipeline_settings.normalize_inter_expected_frequency:
+            self._recalculate_total_possible_interactions()
         self._calculate_prior_probability()
         self._calculate_p_values()
         return self.data[["interaction_count", "prior_p", "p_value"]]
@@ -82,3 +97,11 @@ class InterPValueCalculator:
             ),
             meta=("p_value", "float64")
         )
+
+    def _recalculate_total_possible_interactions(self):
+        # Use self.metadata.chromosomes_present to recalculate total_possible_interactions after filtering chromosomes
+        total_possible_interactions = sum(
+            self.metadata.interaction_count_per_chromosome[chrom]
+            for chrom in self.metadata.chromosomes_present
+        )
+        self.metadata.max_possible_interaction_count_inter = total_possible_interactions

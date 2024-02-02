@@ -88,37 +88,38 @@ class EqualOccupancyBinner:
     def calculate_total_contacts(data) -> dd.DataFrame:
         return data["interaction_count"].sum().compute()
 
-    def assign_to_bins(self, sorted_data, total_contacts):
-        target_per_bin = total_contacts / self.config.number_of_bins
+    @staticmethod
+    def assign_to_bins(sorted_data, total_contacts, num_bins):
+        target_per_bin = total_contacts / num_bins
         sorted_data["cumulative_count"] = sorted_data["interaction_count"].cumsum()
         sorted_data["bin_label"] = (sorted_data["cumulative_count"] / target_per_bin).astype("int")
 
         # Handle the tiebreak condition
-        sorted_data = self.apply_tiebreak_condition
+        sorted_data = EqualOccupancyBinner.apply_tiebreak_condition(sorted_data)
 
         return sorted_data
 
-    def apply_tiebreak_condition(self):
-        # Identify rows where the tiebreak condition applies
-        self.input_data["needs_tiebreak"] = (
-                (self.input_data["genomic_distance"] == self.input_data["genomic_distance"].shift(1)) &
-                (self.input_data["bin_label"] != self.input_data["bin_label"].shift(1))
+    @staticmethod
+    def apply_tiebreak_condition(data):
+        # Logic for applying the tiebreak condition
+        data["needs_tiebreak"] = (
+            (data["genomic_distance"] == data["genomic_distance"].shift(1)) &
+            (data["bin_label"] != data["bin_label"].shift(1))
         )
 
-        # Vectorized approach to adjust bin labels
-        # The logic here is to 'push forward' the bin label when a tiebreak is needed
-        self.input_data["adjusted_bin_label"] = self.input_data["bin_label"].where(~self.input_data["needs_tiebreak"], self.input_data["bin_label"].shift(1))
+        # Adjust bin labels where tiebreak is needed
+        data["adjusted_bin_label"] = data["bin_label"].where(~data["needs_tiebreak"], data["bin_label"].shift(1))
 
         # Clean up and finalize
-        self.input_data = self.input_data.drop(["needs_tiebreak"], axis=1)
-        self.input_data = self.input_data.rename(columns={"adjusted_bin_label": "bin_label"})
+        data = data.drop(["needs_tiebreak"], axis=1)
+        data = data.rename(columns={"adjusted_bin_label": "bin_label"})
 
-        return self
+        return data
 
     @staticmethod
-    def calculate_bin_statistics(binned_data):
+    def calculate_bin_statistics(data_binned):
         # Calculate average genomic distance and contact probability for each bin
-        bin_stats = binned_data.groupby("bin_label").agg({
+        bin_stats = data_binned.groupby("bin_label").agg({
             "genomic_distance": "mean",
             "interaction_count": ["mean", "sum"]
         }).compute()
@@ -128,10 +129,9 @@ class EqualOccupancyBinner:
     def bin_data(self, data):
         sorted_data = self.sort_data_by_distance(data)
         total_contacts = self.calculate_total_contacts(data)
-        binned_data = self.assign_to_bins(sorted_data, total_contacts)
+        binned_data = self.assign_to_bins(sorted_data, total_contacts, self.config.number_of_bins)
         bin_stats = self.calculate_bin_statistics(binned_data)
         return bin_stats
-
 
 class FrequencyAggregator:
 
