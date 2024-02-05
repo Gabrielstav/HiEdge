@@ -2,7 +2,7 @@
 
 # Import modules
 from src.setup.config_loader import Config
-from src.setup.data_structures import FilteringOutput, SplineInput
+from src.setup.data_structures import SplineInput
 import dask.dataframe as dd
 
 class DataPreparationController:

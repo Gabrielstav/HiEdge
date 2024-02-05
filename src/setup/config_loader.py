@@ -19,7 +19,6 @@ class ReferencePaths:
 class Paths:
     input_dir: Path
     output_dir: Path
-    nchg_path: Path
     hg19: ReferencePaths
     hg38: ReferencePaths
 
@@ -99,6 +98,7 @@ class Config:
 
 
 class ConfigMapper:
+
     def __init__(self, configuration_path):
         self.configuration_path = configuration_path
         self.config_data = self._load_configuration_from_file()
@@ -108,6 +108,3 @@ class ConfigMapper:
             config_data = yaml.safe_load(config_file)
             return Config(**config_data)
 
-
-
-    

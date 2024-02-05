@@ -1,11 +1,7 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
-from dataclasses import dataclass
 from src.setup.config_loader import Config
-from src.setup.data_structures import SplineInput
-import dask.dataframe as dd
-from scipy.stats import binom
 from scipy.stats import nchypergeom_wallenius as nchg
 from scipy.stats import binom
 
@@ -64,11 +60,11 @@ class IntraPValueCalculator:
 
 
 class InterPValueCalculator:
-    def __init__(self, config: Config, data, metadata, inter_prob, total_possible_interactions):
+    def __init__(self, config: Config, data, metadata, total_possible_interactions):
         self.config = config
         self.data = data
         self.metadata = metadata
-        self.interChrProb = inter_prob
+        self.interChrProb = data.interChrProb
         self.total_possible_interactions = total_possible_interactions
 
     def run(self):

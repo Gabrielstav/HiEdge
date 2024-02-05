@@ -36,9 +36,6 @@ class Metadata:
     interaction_count_per_chromosome: Optional[dict] = None
     chromosomes_present: Optional[list[str]] = None
 
-
-# TODO:
-#   Maybe just reinstantiate the InteractionOutput class with data instead of having different dataclass containers that are at the same abstraction lvl?:
 @dataclass
 class GroupedFiles:
     metadata: Metadata

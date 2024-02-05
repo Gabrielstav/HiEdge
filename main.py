@@ -1,60 +1,61 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
-
 # Import modules
-import concurrent.futures
-import shutil
-import pybedtools as pbt
-import os as os
-import subprocess as sp
-import math
-from statsmodels.sandbox.stats import multicomp
-import time as time
-from tqdm import tqdm
-import re as re
-import argparse as argparse
-import pickle as pickle
-import threading as threading
-from collections import defaultdict
+from src.setup.config_loader import Config
+from src.setup.data_structures import Metadata, GroupedFiles, InteractionOutput, FilteringOutput, SplineInput, StatisticalOutput
+from src.data_preparation.preparation_controller import DataPreparationController
+from src.filtering.filtering_controller import FilteringController
+from src.statistics.stat_controller import StatController
+from src.output.output_formatter import OutputConfigurator
 
 
-# Call each run method from each class in the filtering,
-# first filtering, then processing, then statistical testing then plotting/output
+class Pipeline:
+    def __init__(self, config: Config):
+        self.config = config
 
+    def run(self):
+        # Load input data and metadata
+        initial_data, initial_metadata = self._load_initial_data()
 
-def run_pipeline():
-    """
-    Call selected methods of the HiC_Pipeline, in the order specified
-    """
+        # Run data preparation
+        data_prep_controller = DataPreparationController(self.config, initial_data, initial_metadata)
+        data_prep_output = data_prep_controller.run()
 
-    global first_print
-    first_print = True
+        # Run filtering
+        filtering_controller = FilteringController(self.config, data_prep_output.data, data_prep_output.metadata)
+        filtering_output = filtering_controller.run_filters()
 
-    start_time = time.time()
+        # Run statistical analysis
+        stat_controller = StatController(self.config, filtering_output.data, filtering_output.metadata)
+        stat_output = stat_controller.run_stats()
 
-    # List of methods to call
-    method_names = [
-        (lambda: Pipeline.input_to_make_bedpe(Pipeline_Input.group_files(SetDirectories.get_input_dir()))),
-        "input_to_remove_blacklist",
-        "input_to_remove_cytobands",
-        "input_to_nchg",
-        "input_to_adjust_pvalues",
-        "input_to_make_edgelist"
-    ]
+        # Configure and write output
+        output_configurator = OutputConfigurator(self.config)
+        output_configurator.configure_output(stat_output)
 
-    # Call each method once
-    for method in tqdm(method_names):
-        if type(method) == str:  # Check if method name is a string
-            method = getattr(Pipeline, method)  # Get the method reference
-        method()  # Call the method
+    def _load_initial_data(self):
+        # Replace with your actual data and metadata loading logic
+        initial_data = loadData()  # Function to load your data
+        initial_metadata = loadMetadata()  # Function to load your metadata
+        return initial_data, initial_metadata
 
-    # Print runtime on completion
-    end_time = time.time()
-    print(f"HiC_Pipeline completed in {end_time - start_time:.2f} seconds. ({(end_time - start_time) / 60:.2f} minutes, {((end_time - start_time) / 60) / 60:.2f} hours).")
+    def _run_setup(self):
+        default_config_path = Path(__file__).parent / "default_config.yaml"
+        run_directory_setup = RunDirectorySetup(default_config_path=default_config_path)
 
+        # Replace with desired path and run name or fetch them from the config
+        run_directory = run_directory_setup.create_run_directory(path=self.config.run_path, run_name=self.config.run_name)
+
+        if run_directory:
+            print(f"Run directory setup complete: {run_directory}")
+        else:
+            print("Run directory setup failed.")
+            return
 
 if __name__ == "__main__":
-    run_pipeline()
+    config = loadConfig()  # Replace with your config loading logic
+    pipeline = Pipeline(config)
+    pipeline.run()
 
 
 

@@ -1,17 +1,17 @@
-# HiC Data Processing Configuration
-# Created by:
+# Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
+
+# HiEdge config file.
 # Date: [Creation/Last Modified Date]
 # Purpose: Configuration settings for processing HiC data.
 
 version: 1.0
 
 paths:
-
-  # Directories for input, output, reference data, and scripts
+  # Directories for input and output data (absolute paths)
   input_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel"
   output_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/output"
 
-  # Reference data files
+  # Reference data files, set as empty string if not used. These files are used for filtering out blacklisted and cytoband regions.
   hg19:
     blacklist_dir: "/Users/GBS/PythonProjects/HiEdge/reference/hg19-blacklist.v2.bed"
     cytoband_dir: "/Users/GBS/PythonProjects/HiEdge/reference/cytoBand_hg19.txt"
@@ -20,9 +20,8 @@ paths:
     cytoband_dir: ""
 
 pipeline_settings:
-
   # Reference genome
-  refernce_genome: "hg19" # Reference genome used in hic pro (hg19 or hg38)
+  refernce_genome: "hg19" # Reference genome used in hic pro experiment upstream of pipeline, used for filtering blacklisted and cytogenic regions (hg19 or hg38)
 
   # Hi-C Pro file discovery settings
   hicpro_raw_dirname: "raw" # Directory containing raw HiC-Pro matrix output (dafault name by hicpro is always: raw)
@@ -30,10 +29,9 @@ pipeline_settings:
 
   # Execution settings
   interaction_type: mixed  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
-  threads: 8  # Number of threads to use
-  iced_data: False  # If set to true, use balanced matrix files by iterative correction (ic) from Hi-C Pro (iced matrices) instead of raw matrix files
-  intra_resolutions: 1000000, 500000  # Resolution in base pairs (e.g., 1000000 for 1Mb) for data to be processed (if empty, process all resolutions for which data is available)
-  inter_resolutions: 1000000 # Resolutions to consider for interchromosomal data (if empty, process all resolutions for which data is available)
+  iced_data: False  # If set to true, use balanced matrix files by iterative correction (ic) from Hi-C Pro (iced matrices) instead of raw matrix files (not recommended, statistical model assumes raw matrices)
+  intra_resolutions: 1000000, 500000  # Resolution in base pairs for intrachromosomal data to be processed (if empty, process all resolutions for which data is available)
+  inter_resolutions: 1000000 # Resolutions in base pairs to consider for interchromosomal data (if empty, process all resolutions for which data is available)
 
   # Filtering settings
   filter_blacklist: True  # If true, filter out interactions in blacklist regions (blacklist file path)
@@ -41,14 +39,19 @@ pipeline_settings:
   remove_chromosomes: ["chr2", "chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from filtering. Empty list means no chromosomes are selected.
   select_chromosomes: [] # List of strings of chromosome(s) to include in filtering, all chromosomes not selected are omitted. Empty list means no speciic chromosomes are selected.
 
-  select_specific_regions: True
+  select_specific_regions: False
   select_regions:
     chr1: "0-10000000"
 
-  omit_specific_regions: True
+  omit_specific_regions: False
   omit_regions:
     chr2: "0-20000000"
 
+  # Output settings
+  output_format: "csv"  # Output format for HiEdge results (csv, hdf5, parquet, text)
+
+
+# Set max and min genomic distance in bp allowed for intrachromosomal interactions to be considered (per resolution)
 interaction_distance_filters:
   1000000:
     lower: 2000000
@@ -58,32 +61,24 @@ interaction_distance_filters:
 #    upper: 50000000
 
 # Statistical settings
-  calculate_bias: False  # Calculate bias internally, without the use of external bias files
-  kr_normalization: False
-  ice_normalization: False
   spline_passes: 2  # Number of spline passes
   fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values by Benjamini-Hochberg procedure
   metabin_occupancy: 100  # Target count for equal occupancy bins for metabinning to spline fit
   use_hicpro_bias: True  # If true, use bias files from HiC-Pro for adjusting expected interaction frequencies before statistical testing. If false, no bias files are used.
   bias_lower_bound: 0.5  # Lower bound for bias values for filtering
   bias_upper_bound: 2.0  # Upper bound for bias values for filtering
-  normalize_inter_expected_frequency: True  # If true, normalize expected interaction count by total interaction count for interchromosomal interactions
-  normalize_intra_expected_frequency: True  # If true, normalize expected interaction count by total interaction count for intrachromosomal interactions
-
+  normalize_inter_expected_frequency: False  # If true, normalize expected interaction count by total interaction count for interchromosomal interactions
+  normalize_intra_expected_frequency: False  # If true, normalize expected interaction count by total interaction count for intrachromosomal interactions
 
 dask_settings:
-
   # Dataframe
   chunksize: 50000  # Default chunk size for dataframes
-
   # Scheduler
   work-stealing: True
   default: "threads"  # or 'processes' or 'distributed'
-
   # Memory
   target: 0.9  # fraction of memory to try to stay beneath
   spill: 0.95  # fraction at which we start spilling to disk
   pause: 0.98  # fraction at which we halt computation and warn
   terminate: 1.0  # fraction at which we kill the worker
   no_termination: True
-

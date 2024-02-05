@@ -40,4 +40,3 @@ class InterStatisticsCalculator:
     def calculate_interaction_probabilities(interdata_count):
         inter_probability = 1 / interdata_count
         return inter_probability
-

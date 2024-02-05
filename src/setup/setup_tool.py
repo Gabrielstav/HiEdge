@@ -10,7 +10,7 @@ import yaml
 
 class RunDirectorySetup:
 
-    SUBDIRS = ["output", "logs", "tmp", "config"]
+    subdirs = ["output", "logs", "tmp", "config"]
 
     def __init__(self, default_config_path: Path):
         self.default_config_path = default_config_path
@@ -21,11 +21,11 @@ class RunDirectorySetup:
         Adjust the paths in the configuration file according to the run directory.
         """
         try:
-            with config_path.open('r') as file:
+            with config_path.open("r") as file:
                 config = yaml.safe_load(file)
 
             # Adjust paths
-            for key, value in config['paths'].items():
+            for key, value in config["paths"].items():
                 if value.startswith("./"):  # It's a relative path
                     config['paths'][key] = str(run_directory / Path(value).name)
 
@@ -47,7 +47,7 @@ class RunDirectorySetup:
 
         # If no run_name is provided, use timestamp as name
         if not run_name:
-            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             run_name = f"run_{timestamp}"
 
         run_path = path / run_name
@@ -83,13 +83,13 @@ def main():
     parser = argparse.ArgumentParser(description="Set up a new run directory.")
 
     # Args for the CLI
-    parser.add_argument('-p', '--path', type=Path, help='Path where the run directory should be created. Default is current directory.')
-    parser.add_argument('-n', '--name', type=str, help='Name for the run directory. Default is "run_{timestamp}".')
+    parser.add_argument("-p", "--path", type=Path, help="Path where the run directory should be created. Default is current directory.")
+    parser.add_argument("-n", "--name", type=str, help='Name for the run directory. Default is "run_{timestamp}".')
 
     args = parser.parse_args()
 
     # Ensure that the default config file is present.
-    default_config_path = Path(__file__).parent / 'default_config.yaml'
+    default_config_path = Path(__file__).parent / "default_config.yaml"
     if not default_config_path.exists():
         print(f"Error: Default configuration file not found at {default_config_path}. Please ensure it's in the correct location.")
         return
@@ -101,4 +101,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
