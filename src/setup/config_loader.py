@@ -2,13 +2,21 @@
 
 # Import modules
 import yaml
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Dict, NamedTuple, Optional
 from pathlib import Path
 
 class GenomicRange(NamedTuple):
     start: int
     end: int
+
+@dataclass
+class Version:
+    version: float
+
+@dataclass
+class RunName:
+    run_name: str
 
 @dataclass(frozen=True)
 class ReferencePaths:
@@ -18,9 +26,17 @@ class ReferencePaths:
 @dataclass(frozen=True)
 class Paths:
     input_dir: Path
-    output_dir: Path
+    run_dir: Path
+    output_dir: Path = field(init=False)
+    log_dir: Path = field(init=False)
+    tmp_dir: Path = field(init=False)
     hg19: ReferencePaths
     hg38: ReferencePaths
+
+    def __post_init__(self):
+        object.__setattr__(self, "output_dir", self.run_dir / "output")
+        object.__setattr__(self, "log_dir", self.run_dir / "logs")
+        object.__setattr__(self, "tmp_dir", self.run_dir / "tmp")
 
 @dataclass(frozen=True)
 class PipelineSettings:
@@ -52,6 +68,7 @@ class PipelineSettings:
     interaction_distance_filters: Dict[int, Dict[str, int]]
     normalize_inter_expected_frequency: bool
     normalize_intra_expected_frequency: bool
+    output_format: str
 
     def __post_init__(self):
         object.__setattr__(self, "select_regions", self._parse_ranges(self.select_regions))
@@ -92,6 +109,7 @@ class DaskSettings:
 @dataclass(frozen=True)
 class Config:
     version: float
+    run_name: str
     paths: Paths
     pipeline_settings: PipelineSettings
     dask_settings: DaskSettings
@@ -101,9 +119,9 @@ class ConfigMapper:
 
     def __init__(self, configuration_path):
         self.configuration_path = configuration_path
-        self.config_data = self._load_configuration_from_file()
+        self.config_data = self.load_configuration_from_file()
 
-    def _load_configuration_from_file(self) -> Config:
+    def load_configuration_from_file(self) -> Config:
         with open(self.configuration_path, "r") as config_file:
             config_data = yaml.safe_load(config_file)
             return Config(**config_data)

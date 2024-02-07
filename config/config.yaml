@@ -6,10 +6,12 @@
 
 version: 1.0
 
+run_name: "" # Name of the run, used for creating output dir with data. If empty, the run dirname will be the timestamp.
+
 paths:
   # Directories for input and output data (absolute paths)
-  input_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel"
-  output_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/output"
+  input_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel"  # Directory containing HiC-Pro output files
+  run_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel/output"  # Output directory (named by run name) containing HiEdge results
 
   # Reference data files, set as empty string if not used. These files are used for filtering out blacklisted and cytoband regions.
   hg19:

@@ -49,23 +49,23 @@ class FileFinder:
 
         # Search for bed and matrix files in raw subdirectories
         for subdir in raw_subdirectories:
-            found_bed_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.bed'), found_resolutions)
+            found_bed_files, found_resolutions = self._filter_files_on_resolution(subdir.glob("*.bed"), found_resolutions)
             bed_files.extend(found_bed_files)
 
             if not self.config.pipeline_settings.iced_data:
-                found_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.matrix'), found_resolutions)
+                found_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob("*.matrix"), found_resolutions)
                 selected_matrix_files.extend(found_matrix_files)
 
         # If iced_matrix config, only search in iced subdirectories
         if self.config.pipeline_settings.iced_data:
             for subdir in iced_subdirectories:
-                found_iced_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob('*.matrix'), found_resolutions)
+                found_iced_matrix_files, found_resolutions = self._filter_files_on_resolution(subdir.glob("*.matrix"), found_resolutions)
                 selected_matrix_files.extend(found_iced_matrix_files)
 
         bias_files = []
-        if self.config.pipeline_settings.use_hicpro_bias_files:
+        if self.config.pipeline_settings.use_hicpro_bias:
             for subdir in iced_subdirectories:
-                found_files, _ = self._filter_files_on_resolution(subdir.glob('*.biases'))
+                found_files, _ = self._filter_files_on_resolution(subdir.glob("*.biases"))
                 bias_files.extend(found_files)
 
         return bed_files, selected_matrix_files, bias_files
@@ -83,7 +83,7 @@ class FileFinder:
             found_resolutions = set()
         filtered_files: List[Path] = []
         for file_path in input_files:
-            resolution_match = re.search(r'_(\d+)[_.]', file_path.name)
+            resolution_match = re.search(r"_(\d+)[_.]", file_path.name)
             if resolution_match:
                 resolution = int(resolution_match.group(1))
                 if self.resolutions is None or resolution in self.resolutions:
@@ -157,7 +157,7 @@ class IcedMatrixRounder:
                 # Handle existing file, e.g., skip, overwrite, or rename
                 continue
 
-            with open(iced_matrixfile, 'r') as f_in, open(output_file_path, "w") as f_out:
+            with open(iced_matrixfile, "r") as f_in, open(output_file_path, "w") as f_out:
                 for line in f_in:
                     cols = line.strip().split()
                     rounded_value = round(float(cols[2]))
