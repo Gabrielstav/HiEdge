@@ -8,19 +8,20 @@ from src.filtering.range_filter import FilterRanges
 from src.filtering.filtering_utils import SplitByInteractionType, FilterInteractionDistances, FilterBias
 from src.filtering.blacklist_filter import RemoveBlacklistedRegions
 from src.filtering.cytobands_filter import RemoveCytobandRegions
-from dask import dataframe as dd
+from typing import List
 
 
 class FilteringController:
 
-    def __init__(self, config: Config, data: dd.DataFrame, metadata: Metadata):
+    def __init__(self, config: Config, interaction_output):
         self.config = config
-        self.data = data
-        self.metadata = metadata
+        # Assuming we get instance of dataclass containing data and metadata (duck typing)
+        self.data = interaction_output.data
+        self.metadata = interaction_output.metadata
         self.blacklist_filter = RemoveBlacklistedRegions(config)
         self.cytoband_filter = RemoveCytobandRegions(config)
 
-    def run_filters(self):
+    def run_filters(self) -> List[FilteringOutput]:
         # Split datasets by interaction type (inter and intra)
         splitter = SplitByInteractionType(self.data)
         intra_df, inter_df = splitter.split_datasets_by_interaction_type()
@@ -33,14 +34,14 @@ class FilteringController:
 
         # Apply the filters on intra_output and inter_output
         self._apply_chromosome_filtering(intra_output, inter_output)
-        self._update_chromosomes_present_metadata()
+        self._update_chromosomes_present_metadata(intra_metadata, inter_metadata)
         self._apply_range_filtering(intra_output, inter_output)
         self._apply_interaction_distance_filtering(intra_output, inter_output)
         self._apply_blacklist_filtering(intra_output, inter_output)
         self._apply_cytoband_filtering(intra_output, inter_output)
         self._apply_bias_filtering(intra_output, inter_output)
 
-        return intra_output, inter_output
+        return [intra_output, inter_output]
 
     def _split_datasets_by_interaction_type(self):
         splitter = SplitByInteractionType(self.data)

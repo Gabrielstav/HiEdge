@@ -12,10 +12,10 @@ import dask.dataframe as dd
 
 class StatController:
 
-    def __init__(self, config: Config, data: dd.DataFrame, metadata: Metadata):
+    def __init__(self, config: Config, filtering_output) -> None:
         self.config = config
-        self.data = data
-        self.metadata = metadata
+        self.metadata = filtering_output.metadata
+        self.data = filtering_output.data
 
     def run_stats(self):
         if self.metadata.interaction_type == "intra":

@@ -8,7 +8,7 @@ class OutputConfigurator:
     def __init__(self, config):
         self.config = config
 
-    def configure_output(self, input_data):
+    def run(self, input_data):
         output_type = self.config.output_type
         if output_type == "default":
             self._write_default_output(input_data)

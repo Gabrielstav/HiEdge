@@ -4,7 +4,6 @@
 import argparse
 from src.setup.config_loader import Config
 from src.setup.pipeline_input import HicProInputFilePreparer
-from src.setup.data_structures import Metadata, GroupedFiles, InteractionOutput, FilteringOutput, SplineInput, StatisticalOutput
 from src.setup.setup_tool import RunDirectorySetup
 from src.setup.config_loader import ConfigMapper
 from src.data_preparation.preparation_controller import DataPreparationController
@@ -12,6 +11,8 @@ from src.filtering.filtering_controller import FilteringController
 from src.statistics.stat_controller import StatController
 from src.output.output_formatter import OutputConfigurator
 from pathlib import Path
+from dask import delayed, compute
+from typing import List
 
 
 class Pipeline:
@@ -21,32 +22,34 @@ class Pipeline:
         self.config = self._load_config()
 
     def run(self):
-        # Set up the run directory
+
+        # Set up the run directory and instantiate config
         setup_tool = RunDirectorySetup(config=self.config)
         setup_tool.prepare_run_environment()
 
-        # Prepare Hi-C Pro input files
+        # Prepare input files and create metadata
         input_file_preparer = HicProInputFilePreparer(self.config)
         grouped_files_list = input_file_preparer.prepare_input_files()
 
-        # Data preparation
-        data_prep_controller = DataPreparationController(self.config, grouped_files_list)
-        data_prep_output = data_prep_controller.run()
+        # Create interaction data
+        prepared_interactions = self._execute_in_parallel(grouped_files_list, DataPreparationController)
 
-        # Filtering
-        filtering_controller = FilteringController(self.config, data_prep_output.data, data_prep_output.metadata)
-        filtering_output = filtering_controller.run_filters()
+        # Filter on the interactions
+        filtered_interactions = self._execute_in_parallel(prepared_interactions, FilteringController)
 
-        # Statistical analysis
-        stat_controller = StatController(self.config, filtering_output.data, filtering_output.metadata)
-        stat_output = stat_controller.run_stats()
+        # Perform statistical analysis
+        statistical_output = self._execute_in_parallel(filtered_interactions, StatController)
 
         # Configure and write output
-        output_configurator = OutputConfigurator(self.config)
-        output_configurator.configure_output(stat_output)
+        self._execute_in_parallel(statistical_output, OutputConfigurator)
 
-        # Print final message with runtime and output directory
-        print(f"Pipeline finished. Output files written to {self.config.paths.output_dir}")
+    def _execute_in_parallel(self, inputs, controller_class) -> List:
+        # Create delayed objects for each contrller class
+        delayed_tasks = [delayed(controller_class)(self.config, input_obj) for input_obj in inputs]
+        delayed_runs = [task.run() for task in delayed_tasks]
+
+        # Execute in parallel and return the results
+        return compute(*delayed_runs)[0]  # returns the first element of compute tuple, list of results
 
     def _load_config(self) -> Config:
         config_mapper = ConfigMapper(self.config_path)

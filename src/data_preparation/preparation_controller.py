@@ -6,7 +6,6 @@ from src.data_preparation.bias_merger import BiasMerger
 from src.data_preparation.interaction_creator import InteractionCreator
 from src.setup.data_structures import InteractionOutput
 
-
 class DataPreparationController:
 
     def __init__(self, config, grouped_files):
