@@ -6,24 +6,6 @@ from pathlib import Path
 import dask.dataframe as dd
 from typing import Optional
 
-# TODO:
-#   use schame to validate dd dataframes of interactions later?
-@dataclass
-class Interaction:
-    chr1: str
-    start1: int
-    end1: int
-    chr2: str
-    start2: int
-    end2: int
-    midpoint_1: int
-    midpoint_2: int
-    bias_1: Optional[float] = None
-    bias_2: Optional[float] = None
-    genomic_distance: Optional[int] = None
-    expected_frequency: Optional[float] = None
-    p_value: Optional[float] = None
-
 # Dataset metadata (cell line)
 @dataclass
 class Metadata:

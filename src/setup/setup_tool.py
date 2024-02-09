@@ -16,7 +16,7 @@ class RunDirectorySetup:
         self.config = config
         # Ensure run_name is incorporated into the final run directory path
         self.run_name = self.config.run_name or f"run_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        self.run_path = self.config.paths.run_dir / self.run_name  # Adjusted to include self.run_name in the path
+        self.run_path = self.config.paths.run_dir / self.run_name
 
     def prepare_run_environment(self):
         if self.run_path.exists():

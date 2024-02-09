@@ -12,6 +12,9 @@ paths:
   # Directories for input and output data (absolute paths)
   input_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel"  # Directory containing HiC-Pro output files
   run_dir: "/Users/GBS/Master/HiC-Data/testing_chrom_parallelization/input_test_chrom_parallel/output"  # Output directory (named by run name) containing HiEdge results
+  output_dir: ""
+  temp_dir: = ""
+
 
   # Reference data files, set as empty string if not used. These files are used for filtering out blacklisted and cytoband regions.
   hg19:
@@ -23,14 +26,14 @@ paths:
 
 pipeline_settings:
   # Reference genome
-  refernce_genome: "hg19" # Reference genome used in hic pro experiment upstream of pipeline, used for filtering blacklisted and cytogenic regions (hg19 or hg38)
+  reference_genome: "hg19" # Reference genome used in hic pro experiment upstream of pipeline, used for filtering blacklisted and cytogenic regions (hg19 or hg38)
 
   # Hi-C Pro file discovery settings
   hicpro_raw_dirname: "raw" # Directory containing raw HiC-Pro matrix output (dafault name by hicpro is always: raw)
   hicpro_norm_dirname: "iced" # Directory containing balanced HiC-Pro matrix output and bias matrices (dafault name by hicpro is always: iced)
 
   # Execution settings
-  interaction_type: mixed  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
+  interaction_type: "mixed"  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
   iced_data: False  # If set to true, use balanced matrix files by iterative correction (ic) from Hi-C Pro (iced matrices) instead of raw matrix files (not recommended, statistical model assumes raw matrices)
   intra_resolutions: 1000000, 500000  # Resolution in base pairs for intrachromosomal data to be processed (if empty, process all resolutions for which data is available)
   inter_resolutions: 1000000 # Resolutions in base pairs to consider for interchromosomal data (if empty, process all resolutions for which data is available)
@@ -54,10 +57,10 @@ pipeline_settings:
 
 
 # Set max and min genomic distance in bp allowed for intrachromosomal interactions to be considered (per resolution)
-interaction_distance_filters:
-  1000000:
-    lower: 2000000
-    upper: 10000000
+  interaction_distance_filters:
+    1000000:
+      lower: 2000000
+      upper: 10000000
 #  500000:
 #    lower: 1000000
 #    upper: 50000000
@@ -76,7 +79,7 @@ dask_settings:
   # Dataframe
   chunksize: 50000  # Default chunk size for dataframes
   # Scheduler
-  work-stealing: True
+  work_stealing: True
   default: "threads"  # or 'processes' or 'distributed'
   # Memory
   target: 0.9  # fraction of memory to try to stay beneath

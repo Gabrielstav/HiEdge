@@ -3,8 +3,9 @@
 # Import modules
 import yaml
 from dataclasses import dataclass, field
-from typing import List, Dict, NamedTuple, Optional
+from typing import List, Dict, NamedTuple, Optional, get_origin, Type, Any, get_args
 from pathlib import Path
+import dataclasses
 
 class GenomicRange(NamedTuple):
     start: int
@@ -114,15 +115,59 @@ class Config:
     pipeline_settings: PipelineSettings
     dask_settings: DaskSettings
 
+def parse_genomic_ranges(range_str: str) -> List[GenomicRange]:
+    """Parse a string of genomic ranges into a list of GenomicRange tuples."""
+    return [GenomicRange(*map(int, part.split("-"))) for part in range_str.split(",")]
+
+def convert_to_dataclass(target_type: Type[Any], data: Any) -> Any:
+    """Convert dictionaries to dataclass instances, handling special types and lists."""
+    if dataclasses.is_dataclass(target_type):
+        field_values = {}
+        for fields in dataclasses.fields(target_type):
+            if not fields.init:  # Skip fields that are not initialized through the constructor
+                continue
+            if fields.name in data:
+                field_data = data[fields.name]
+                field_values[fields.name] = convert_field_value(fields.type, field_data)
+            elif fields.default is not dataclasses.MISSING:
+                field_values[fields.name] = fields.default
+            elif fields.default_factory is not dataclasses.MISSING:
+                field_values[fields.name] = fields.default_factory()
+            else:
+                continue  # Skip raising an error for missing fields with init=False
+        return target_type(**field_values)
+    else:
+        return data
+
+def convert_field_value(field_type: Type[Any], value: Any) -> Any:
+    """Handle conversion for specific field types, including lists and dataclasses."""
+
+    if dataclasses.is_dataclass(field_type):
+        return convert_to_dataclass(field_type, value)
+
+    elif field_type == Path:
+        return Path(value)
+
+    elif get_origin(field_type) == list:
+        element_type = get_args(field_type)[0]
+        if isinstance(value, str):
+            # Handle special case for strings that need to be split and converted
+            if element_type == GenomicRange:
+                return parse_genomic_ranges(value)
+            else:
+                return [convert_field_value(element_type, v) for v in value.split(",")]
+        else:
+            return [convert_field_value(element_type, v) for v in value]
+    else:
+        # direct conversion for simple types or if no conversion is necessary
+        return value
 
 class ConfigMapper:
-
-    def __init__(self, configuration_path):
+    def __init__(self, configuration_path: Path):
         self.configuration_path = configuration_path
-        self.config_data = self.load_configuration_from_file()
 
     def load_configuration_from_file(self) -> Config:
+        """Load and convert configuration from YAML file to Config dataclass."""
         with open(self.configuration_path, "r") as config_file:
             config_data = yaml.safe_load(config_file)
-            return Config(**config_data)
-
+            return convert_to_dataclass(Config, config_data)

@@ -58,7 +58,7 @@ class Pipeline:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the pipeline with the specified configuration.")
-    parser.add_argument("--config", type=Path, required=True, help="Path to the configuration YAML file.")
+    parser.add_argument("--config", "-con", "-c", type=Path, required=True, help="Path to the configuration YAML file.")
     args = parser.parse_args()
 
     pipeline = Pipeline(args.config)
