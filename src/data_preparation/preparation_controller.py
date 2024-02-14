@@ -11,15 +11,19 @@ class DataPreparationController:
     def __init__(self, config, grouped_files):
         self.config = config
         self.grouped_files = grouped_files
-        self.interaction_processor = InteractionCreator(config, grouped_files)
+        self.interaction_processor = InteractionCreator(config, grouped_files, bed_length=None)
         self.interaction_calculator = InteractionCalculator(config, grouped_files.matrix_file)
 
     def run(self):
-        interaction_df = self.interaction_processor.create_interaction_dataframe()
+        result = self.interaction_processor.create_interaction_dataframe()
+        interaction_df = result[0]
+        bed_length = result[1] if len(result) > 1 else None  # Unpack bed_length if available
 
-        if self.config.pipeline_settings.use_hicpro_bias:
-            bias_merger = BiasMerger(self.config, interaction_df, self.grouped_files.bias_file_path)
+        if self.config.statistical_settings.use_hicpro_bias:
+            bias_merger = BiasMerger(self.config, interaction_df, self.grouped_files.metadata.bias_file_path, bed_length)
             interaction_df = bias_merger.process_and_merge_bias()
+
+        self.interaction_calculator = InteractionCalculator(self.config, interaction_df)
 
         total_interactions = self.interaction_calculator.calculate_total_interactions()
 

@@ -34,6 +34,7 @@ class FileFinder:
     def __init__(self, config: Config):
         self.config = config
         self.resolutions: Optional[List[Path]] = None
+        self.desired_resolutions = set(config.pipeline_settings.intra_resolutions + config.pipeline_settings.inter_resolutions)
 
     def find_hicpro_bed_matrix_files(self) -> Tuple[List[Path], List[Path], Optional[List[Path]]]:
         """
@@ -46,6 +47,12 @@ class FileFinder:
 
         raw_subdirectories = self._find_subdirectories(self.config.pipeline_settings.hicpro_raw_dirname)
         iced_subdirectories = self._find_subdirectories(self.config.pipeline_settings.hicpro_norm_dirname)
+
+        # TODO: remove later
+        print(f"Searching in raw subdirectories: {raw_subdirectories}")
+        print(f"Found bed files: {bed_files}")
+        print(f"Found matrix files: {selected_matrix_files}")
+
 
         # Search for bed and matrix files in raw subdirectories
         for subdir in raw_subdirectories:
@@ -63,15 +70,26 @@ class FileFinder:
                 selected_matrix_files.extend(found_iced_matrix_files)
 
         bias_files = []
-        if self.config.pipeline_settings.use_hicpro_bias:
+        if self.config.statistical_settings.use_hicpro_bias:
             for subdir in iced_subdirectories:
                 found_files, _ = self._filter_files_on_resolution(subdir.glob("*.biases"))
                 bias_files.extend(found_files)
 
+        # Check for missing resolutions after finding files
+        missing_resolutions = self.desired_resolutions - found_resolutions
+        for resolution in missing_resolutions:
+            print(f"Data for resolution {resolution} not present in input directory.")
+
+        if missing_resolutions:
+            for resolution in missing_resolutions:
+                print(f"Data for resolution {resolution} not present in input directory.")
+        else:
+            print("Successfully found input files for all specified resolutions.")
+
         return bed_files, selected_matrix_files, bias_files
 
     def _find_subdirectories(self, dirname: str) -> List[Path]:
-        return [path for path in self.config.paths.input_dir.rglob(dirname) if path.is_dir()]
+        return [path for path in self.config.paths.input_dir.glob(f"**/{dirname}/*") if path.is_dir()]
 
     def _filter_files_on_resolution(self, input_files: Iterable[Path], found_resolutions=None) -> Tuple[List[Path], Set[int]]:
         """
@@ -86,6 +104,7 @@ class FileFinder:
             resolution_match = re.search(r"_(\d+)[_.]", file_path.name)
             if resolution_match:
                 resolution = int(resolution_match.group(1))
+                print(f"Found resolution: {resolution} for file: {file_path}")
                 if self.resolutions is None or resolution in self.resolutions:
                     filtered_files.append(file_path)
                 found_resolutions.add(resolution)
@@ -96,6 +115,7 @@ class HicProFileGrouper:
 
     def __init__(self, config: Config):
         self.config = config
+        self.desired_resolutions = set(config.pipeline_settings.intra_resolutions + config.pipeline_settings.inter_resolutions)
 
     def group_files(self, bedfiles: List[Path], matrixfiles: List[Path], biasfiles: Optional[List[Path]] = None) -> List[GroupedFiles]:
 
@@ -129,9 +149,17 @@ class HicProFileGrouper:
             key = extract_metadata_from_file(matrixfile)
             if key in bedfile_lookup:
                 experiment, resolution = key
-                bias_file = biasfile_lookup.get(key)
+                bias_file = biasfile_lookup.get(key) if self.config.statistical_settings.use_hicpro_bias else None
                 metadata = Metadata(experiment=experiment, resolution=resolution, bias_file_path=bias_file)
                 grouped_files.append(GroupedFiles(metadata=metadata, bed_file=bedfile_lookup[key], matrix_file=matrixfile))
+
+        for resolution in self.desired_resolutions:
+            groups_for_resolution = [group for group in grouped_files if group.metadata.resolution == resolution]
+            if not groups_for_resolution:
+                print(f"No files found for resolution {resolution}.")
+            else:
+                if self.config.statistical_settings.use_hicpro_bias and any(group.metadata.bias_file_path is None for group in groups_for_resolution):
+                    print(f"Bias files missing for resolution {resolution}.")
 
         return grouped_files
 

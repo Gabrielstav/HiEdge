@@ -2,101 +2,102 @@
 
 # Import modules
 import yaml
-from dataclasses import dataclass, field
-from typing import List, Dict, NamedTuple, Optional, get_origin, Type, Any, get_args
+from typing import List, Dict, Optional
 from pathlib import Path
-import dataclasses
+from pydantic import BaseModel, field_validator, Field
 
-class GenomicRange(NamedTuple):
+
+class GenomicRange(BaseModel):
     start: int
     end: int
 
-@dataclass
-class Version:
+class InteractionDistanceFilter(BaseModel):
+    min_distance: int
+    max_distance: int
+
+
+class Version(BaseModel):
     version: float
 
-@dataclass
-class RunName:
+
+class RunName(BaseModel):
     run_name: str
 
-@dataclass(frozen=True)
-class ReferencePaths:
+
+class ReferencePaths(BaseModel):
     blacklist_dir: Optional[Path] = None
     cytoband_dir: Optional[Path] = None
 
-@dataclass(frozen=True)
-class Paths:
+
+class Paths(BaseModel):
     input_dir: Path
     run_dir: Path
-    output_dir: Path = field(init=False)
-    log_dir: Path = field(init=False)
-    tmp_dir: Path = field(init=False)
     hg19: ReferencePaths
     hg38: ReferencePaths
 
-    def __post_init__(self):
-        object.__setattr__(self, "output_dir", self.run_dir / "output")
-        object.__setattr__(self, "log_dir", self.run_dir / "logs")
-        object.__setattr__(self, "tmp_dir", self.run_dir / "tmp")
+    @property
+    def output_dir(self):
+        return self.run_dir / "output"
 
-@dataclass(frozen=True)
-class PipelineSettings:
+    @property
+    def log_dir(self):
+        return self.run_dir / "logs"
+
+    @property
+    def tmp_dir(self):
+        return self.run_dir / "tmp"
+
+
+class PipelineSettings(BaseModel):
     reference_genome: str
     hicpro_raw_dirname: str
     hicpro_norm_dirname: str
-    inter: bool
-    intra: bool
-    mixed: bool
-    threads: int
-    executor: str
-    no_split: bool
+    interaction_type: str
     iced_data: bool
-    max_interaction_range: int
-    min_interaction_range: int
-    resolutions: List[int]
+    intra_resolutions: List[int]
+    inter_resolutions: List[int]
     filter_blacklist: bool
     filter_cytobands: bool
     remove_chromosomes: List[str]
     select_chromosomes: List[str]
-    select_regions: Dict[str, List[GenomicRange]]
-    omit_regions: Dict[str, List[GenomicRange]]
-    fdr_threshold: float
-    metabin_occupancy: int
-    spline_passes: int
-    bias_lower_bound: float
-    bias_upper_bound: float
-    use_hicpro_bias: bool
-    interaction_distance_filters: Dict[int, Dict[str, int]]
-    normalize_inter_expected_frequency: bool
-    normalize_intra_expected_frequency: bool
+    select_specific_regions: bool
+    select_regions: Dict[str, List[str]] = Field(default_factory=dict)
+    omit_regions: Dict[str, List[str]] = Field(default_factory=dict)
+    use_interaction_distance_filters: bool
+    interaction_distance_filters: Dict[int, InteractionDistanceFilter]
     output_format: str
 
-    def __post_init__(self):
-        object.__setattr__(self, "select_regions", self._parse_ranges(self.select_regions))
-        object.__setattr__(self, "omit_regions", self._parse_ranges(self.omit_regions))
-        object.__setattr__(self, "interaction_distance_filters", self._parse_distance_filters(self.interaction_distance_filters))
-
-    @staticmethod
-    def _parse_ranges(ranges_dict):
+    @field_validator("select_regions", "omit_regions")
+    def convert_ranges_to_objects(cls, v: Dict[str, List[str]]):
         parsed = {}
-        for chrom, ranges in ranges_dict.items():
-            range_list = []
-            for rg in ranges.split(","):
-                start, end = map(int, rg.split("-"))
-                range_list.append(GenomicRange(start, end))
-            parsed[chrom] = range_list
+        for chrom, ranges in v.items():
+            range_objects = [GenomicRange(start=int(r.split("-")[0]), end=int(r.split("-")[1])) for r in ranges]
+            parsed[chrom] = range_objects
         return parsed
 
-    @staticmethod
-    def _parse_distance_filters(filters_dict):
+    @field_validator("interactions_distance_filters", check_fields=False)
+    def validate_interaction_distance_filters(cls, v: Dict[int, InteractionDistanceFilter]):
         parsed = {}
-        for resolution, ranges in filters_dict.items():
-            parsed_resolution = {key: int(value) for key, value in ranges.items()}
-            parsed[resolution] = parsed_resolution
-        return parsed
+        for k, val in v.items():
+            if not isinstance(k, int):
+                raise ValueError(f"Keys in interaction_distance_filters must be integers, got {type(k).__name__}")
+            if not isinstance(val, InteractionDistanceFilter):
+                raise ValueError(f"Values in interaction_distance_filters must be InteractionDistanceFilter instances (integers), got {type(val).__name__}")
+            parsed[k] = val
 
-@dataclass(frozen=True)
-class DaskSettings:
+
+class StatisticalSettings(BaseModel):
+    spline_passes: int
+    fdr_threshold: float
+    metabin_occupancy: int
+    use_hicpro_bias: bool
+    bias_lower_bound: float
+    bias_upper_bound: float
+    normalize_inter_expected_frequency: bool
+    normalize_intra_expected_frequency: bool
+
+
+class DaskSettings(BaseModel):
     chunksize: int
     work_stealing: bool
     default: str
@@ -107,67 +108,21 @@ class DaskSettings:
     no_termination: bool
 
 
-@dataclass(frozen=True)
-class Config:
+class Config(BaseModel):
     version: float
     run_name: str
     paths: Paths
     pipeline_settings: PipelineSettings
+    statistical_settings: StatisticalSettings
     dask_settings: DaskSettings
 
-def parse_genomic_ranges(range_str: str) -> List[GenomicRange]:
-    """Parse a string of genomic ranges into a list of GenomicRange tuples."""
-    return [GenomicRange(*map(int, part.split("-"))) for part in range_str.split(",")]
 
-def convert_to_dataclass(target_type: Type[Any], data: Any) -> Any:
-    """Convert dictionaries to dataclass instances, handling special types and lists."""
-    if dataclasses.is_dataclass(target_type):
-        field_values = {}
-        for fields in dataclasses.fields(target_type):
-            if not fields.init:  # Skip fields that are not initialized through the constructor
-                continue
-            if fields.name in data:
-                field_data = data[fields.name]
-                field_values[fields.name] = convert_field_value(fields.type, field_data)
-            elif fields.default is not dataclasses.MISSING:
-                field_values[fields.name] = fields.default
-            elif fields.default_factory is not dataclasses.MISSING:
-                field_values[fields.name] = fields.default_factory()
-            else:
-                continue  # Skip raising an error for missing fields with init=False
-        return target_type(**field_values)
-    else:
-        return data
-
-def convert_field_value(field_type: Type[Any], value: Any) -> Any:
-    """Handle conversion for specific field types, including lists and dataclasses."""
-
-    if dataclasses.is_dataclass(field_type):
-        return convert_to_dataclass(field_type, value)
-
-    elif field_type == Path:
-        return Path(value)
-
-    elif get_origin(field_type) == list:
-        element_type = get_args(field_type)[0]
-        if isinstance(value, str):
-            # Handle special case for strings that need to be split and converted
-            if element_type == GenomicRange:
-                return parse_genomic_ranges(value)
-            else:
-                return [convert_field_value(element_type, v) for v in value.split(",")]
-        else:
-            return [convert_field_value(element_type, v) for v in value]
-    else:
-        # direct conversion for simple types or if no conversion is necessary
-        return value
-
-class ConfigMapper:
-    def __init__(self, configuration_path: Path):
-        self.configuration_path = configuration_path
+class InstantiateConfig:
+    def __init__(self, config_path: Path):
+        self.config_path = config_path
 
     def load_configuration_from_file(self) -> Config:
-        """Load and convert configuration from YAML file to Config dataclass."""
-        with open(self.configuration_path, "r") as config_file:
+        """Load and convert configuration from YAML file to Config class."""
+        with open(self.config_path, "r") as config_file:
             config_data = yaml.safe_load(config_file)
-            return convert_to_dataclass(Config, config_data)
+            return Config(**config_data)

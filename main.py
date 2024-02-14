@@ -5,13 +5,14 @@ import argparse
 from src.setup.config_loader import Config
 from src.setup.pipeline_input import HicProInputFilePreparer
 from src.setup.setup_tool import RunDirectorySetup
-from src.setup.config_loader import ConfigMapper
+from src.setup.config_loader import InstantiateConfig
 from src.data_preparation.preparation_controller import DataPreparationController
 from src.filtering.filtering_controller import FilteringController
 from src.statistics.stat_controller import StatController
 from src.output.output_formatter import OutputConfigurator
 from pathlib import Path
-from dask import delayed, compute
+from dask import compute
+from dask.delayed import delayed
 from typing import List
 
 
@@ -24,7 +25,7 @@ class Pipeline:
     def run(self):
 
         # Set up the run directory and instantiate config
-        setup_tool = RunDirectorySetup(config=self.config)
+        setup_tool = RunDirectorySetup(config=self.config, config_path=self.config_path)
         setup_tool.prepare_run_environment()
 
         # Prepare input files and create metadata
@@ -48,11 +49,26 @@ class Pipeline:
         delayed_tasks = [delayed(controller_class)(self.config, input_obj) for input_obj in inputs]
         delayed_runs = [task.run() for task in delayed_tasks]
 
+        # Debugging output
+        print(f"Executing {len(delayed_runs)} tasks in parallel.")
+
+        if not delayed_runs:
+            print("No tasks to execute.")
+            return []
+
+        results = compute(*delayed_runs)
+
+        # Check if results tuple is not empty before indexing
+        if results:
+            print(results[0])
+        else:
+            print("No results returned from compute.")
+
         # Execute in parallel and return the results
         return compute(*delayed_runs)[0]  # returns the first element of compute tuple, list of results
 
     def _load_config(self) -> Config:
-        config_mapper = ConfigMapper(self.config_path)
+        config_mapper = InstantiateConfig(self.config_path)
         return config_mapper.load_configuration_from_file()
 
 

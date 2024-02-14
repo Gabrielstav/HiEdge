@@ -6,7 +6,6 @@ from pathlib import Path
 import dask.dataframe as dd
 from typing import Optional
 
-# Dataset metadata (cell line)
 @dataclass
 class Metadata:
     experiment: str

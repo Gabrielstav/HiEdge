@@ -156,7 +156,7 @@ class DistanceFilter:
         self.resolution = resolution
 
     def filter_distances(self) -> dd.DataFrame:
-        if self.resolution in self.config.pipeline_settings.interaction_distance_filters:
+        if self.resolution in self.config.pipeline_settings.interaction_distance_filters and self.config.pipeline_settings.use_interaction_distance_filters:
             lower_bound = self.config.pipeline_settings.interaction_distance_filters[self.resolution]["lower"]
             upper_bound = self.config.pipeline_settings.interaction_distance_filters[self.resolution]["upper"]
             self.data = self.data[(self.data["genomic_distance"] >= lower_bound) & (self.data["genomic_distance"] <= upper_bound)]
