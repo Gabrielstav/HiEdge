@@ -14,12 +14,15 @@ class BiasMerger:
 
     def process_and_merge_bias(self):
         bias_series = self._read_and_process_bias()
+        print(f"Before merging: {bias_series.head(5)}")
 
         # Convert bias_series into a DataFrame and reset the index to get 'idx' as a column
         bias_df = bias_series.to_frame(name="bias_value").reset_index().rename(columns={"index": "idx"})
+        print(bias_df.head(10))
 
         # Merge bias values based on idx with interaction DataFrame
         self.interaction_df = self.merge_bias_with_interaction(self.interaction_df, bias_df, self.bed_length)
+        print(f"After merging: {self.interaction_df.head(10)}")
 
         return self.interaction_df
 
@@ -51,7 +54,10 @@ class BiasMerger:
         interaction_ddf = interaction_ddf.merge(extended_bias_df, left_on="idx_1", right_on="idx", how="left").rename(columns={"bias_value": "bias_1"})
         interaction_ddf = interaction_ddf.merge(extended_bias_df, left_on="idx_2", right_on="idx", how="left").rename(columns={"bias_value": "bias_2"})
 
-        if "idx" in interaction_ddf.columns:
-            interaction_ddf = interaction_ddf.drop(columns=["idx"])
+        if "idx_x" in interaction_ddf.columns:
+            interaction_ddf = interaction_ddf.drop(columns=["idx_x"])
+        if "idx_y" in interaction_ddf.columns:
+            interaction_ddf = interaction_ddf.drop(columns=["idx_y"])
 
+        print(interaction_ddf.head(5))
         return interaction_ddf

@@ -31,18 +31,23 @@ class Pipeline:
         # Prepare input files and create metadata
         input_file_preparer = HicProInputFilePreparer(self.config)
         grouped_files_list = input_file_preparer.prepare_input_files()
+        print(f"Preparing input files: {grouped_files_list}")
 
         # Create interaction data
         prepared_interactions = self._execute_in_parallel(grouped_files_list, DataPreparationController)
+        print(f"Making interaction datasets: {prepared_interactions}")
 
         # Filter on the interactions
         filtered_interactions = self._execute_in_parallel(prepared_interactions, FilteringController)
+        print(f"Filtering on interaction datasets: {filtered_interactions}")
 
         # Perform statistical analysis
         statistical_output = self._execute_in_parallel(filtered_interactions, StatController)
+        print(f"Doing statistical modeling: {statistical_output}")
 
         # Configure and write output
         self._execute_in_parallel(statistical_output, OutputConfigurator)
+        print(f"Writing output!")
 
     def _execute_in_parallel(self, inputs, controller_class) -> List:
         # Create delayed objects for each contrller class

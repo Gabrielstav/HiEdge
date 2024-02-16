@@ -9,7 +9,6 @@ class InteractionCalculator:
         self.data = data  # interaction dask dataframe
 
     def calculate_total_interactions(self):
-        # Assuming 'chr_1' and 'chr_2' represent the chromosomes involved in each interaction
         chrom_counts_1 = self.data["chr_1"].value_counts().compute()
         chrom_counts_2 = self.data["chr_2"].value_counts().compute()
 

@@ -33,9 +33,10 @@ pipeline_settings:
   hicpro_norm_dirname: "iced" # Directory containing balanced HiC-Pro matrix output and bias matrices (dafault name by hicpro is always: iced)
 
   # Execution settings
-  interaction_type: "mixed"  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
+  interaction_type: "intra"  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
   iced_data: False  # If set to true, use balanced matrix files by iterative correction (ic) from Hi-C Pro (iced matrices) instead of raw matrix files (not recommended, statistical model assumes raw matrices)
-  intra_resolutions: [1000000, 500000]  # Resolution in base pairs for intrachromosomal data to be processed (if empty, process all resolutions for which data is available)
+  round_iced_matrices: False  # If true, round iced matrices to integer values.
+  intra_resolutions: [1000000]  # Resolution in base pairs for intrachromosomal data to be processed (if empty, process all resolutions for which data is available)
   inter_resolutions: [1000000] # Resolutions in base pairs to consider for interchromosomal data (if empty, process all resolutions for which data is available)
 
   # Filtering settings

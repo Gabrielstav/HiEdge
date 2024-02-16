@@ -54,6 +54,7 @@ class PipelineSettings(BaseModel):
     hicpro_norm_dirname: str
     interaction_type: str
     iced_data: bool
+    round_iced_matrices: bool
     intra_resolutions: List[int]
     inter_resolutions: List[int]
     filter_blacklist: bool
