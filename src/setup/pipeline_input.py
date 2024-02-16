@@ -18,15 +18,6 @@ class HicProInputFilePreparer:
     def prepare_input_files(self) -> List[GroupedFiles]:
         bedfiles, matrixfiles, biasfiles = self.file_finder.find_hicpro_bed_matrix_files()
         grouped_files = self.file_grouper.group_files(bedfiles, matrixfiles, biasfiles)
-
-        # if self.config.pipeline_settings.iced_data:
-        #     matrix_files_to_round = [group.matrix_file for group in grouped_files]
-        #     rounded_matrix_files = self.matrix_rounder.round_floats_in_iced_files(matrix_files_to_round)
-        #
-        #     # Update matrix files in the GroupedFiles instances
-        #     for i, group in enumerate(grouped_files):
-        #         grouped_files[i] = GroupedFiles(metadata=group.metadata, bed_file=group.bed_file, matrix_file=rounded_matrix_files[i])
-
         return grouped_files
 
 class FileFinder:
@@ -168,38 +159,3 @@ class HicProFileGrouper:
                     print(f"Bias files missing for resolution {resolution}.")
 
         return grouped_files
-
-# class IcedMatrixRounder:
-#
-#     def __init__(self, config: Config):
-#         self.config = config
-#
-#     def round_floats_in_iced_files(self, iced_matrixfiles: List[Path]) -> List[Path]:
-#         """
-#         Rounds the float values in ICE-normalized matrix files and saves them in a new directory
-#         inside the output directory. The new files are returned.
-#
-#         :param: List of Paths to the iced matrix files.
-#         :returns: List of Paths to the rounded iced matrix files.
-#         """
-#         inted_iced_matrixfiles = []
-#
-#         for iced_matrixfile in iced_matrixfiles:
-#             # make iced dirs in output
-#             rounded_iced_dir = self.config.paths.tmp_dir / "rounded_iced"
-#             # write output file in rounded iced dir
-#             output_file_path = rounded_iced_dir / iced_matrixfile.name
-#
-#
-#             # output_file_path = self.config.paths.output_dir / iced_matrixfile.name
-#
-#
-#             with open(iced_matrixfile, "r") as f_in, open(output_file_path, "w") as f_out:
-#                 for line in f_in:
-#                     cols = line.strip().split()
-#                     rounded_value = round(float(cols[2]))
-#                     f_out.write("\t".join([cols[0], cols[1], str(rounded_value)]) + "\n")
-#
-#             inted_iced_matrixfiles.append(output_file_path)
-#
-#         return inted_iced_matrixfiles

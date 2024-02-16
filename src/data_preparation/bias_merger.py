@@ -18,7 +18,7 @@ class BiasMerger:
 
         # Convert bias_series into a DataFrame and reset the index to get 'idx' as a column
         bias_df = bias_series.to_frame(name="bias_value").reset_index().rename(columns={"index": "idx"})
-        print(bias_df.head(10))
+        bias_df["idx"] += 1  # Set start index to match index of interaction DataFrame (from matrix id)
 
         # Merge bias values based on idx with interaction DataFrame
         self.interaction_df = self.merge_bias_with_interaction(self.interaction_df, bias_df, self.bed_length)
