@@ -15,13 +15,12 @@ class FilteringController:
 
     def __init__(self, config: Config, interaction_output):
         self.config = config
-        # Assuming we get instance of dataclass containing data and metadata (duck typing)
         self.data = interaction_output.data
         self.metadata = interaction_output.metadata
         self.blacklist_filter = RemoveBlacklistedRegions(config)
         self.cytoband_filter = RemoveCytobandRegions(config)
 
-    def run_filters(self) -> List[FilteringOutput]:
+    def run(self) -> List[FilteringOutput]:
         # Split datasets by interaction type (inter and intra)
         splitter = SplitByInteractionType(self.data)
         intra_df, inter_df = splitter.split_datasets_by_interaction_type()
@@ -34,12 +33,13 @@ class FilteringController:
 
         # Apply the filters on intra_output and inter_output
         self._apply_chromosome_filtering(intra_output, inter_output)
-        self._update_chromosomes_present_metadata(intra_metadata, inter_metadata)
         self._apply_range_filtering(intra_output, inter_output)
-        self._apply_interaction_distance_filtering(intra_output, inter_output)
+        self._apply_interaction_distance_filtering(intra_output)
         self._apply_blacklist_filtering(intra_output, inter_output)
         self._apply_cytoband_filtering(intra_output, inter_output)
         self._apply_bias_filtering(intra_output, inter_output)
+        self._update_chromosomes_present_in_metadata(intra_output, intra_output)
+        self._remove_metadata_for_filtered_chromosomes(intra_metadata)
 
         return [intra_output, inter_output]
 
@@ -52,8 +52,8 @@ class FilteringController:
     def _apply_chromosome_filtering(self, intra_output, inter_output):
         if self.config.pipeline_settings.remove_chromosomes or self.config.pipeline_settings.select_chromosomes:
             chromosome_filter = FilterChromosomes(self.config)
-            intra_output.data = chromosome_filter.filter_data(intra_output.data)
-            inter_output.data = chromosome_filter.filter_data(inter_output.data)
+            intra_output.data = chromosome_filter.filter_data(intra_output.data, intra_output.metadata.interaction_type)
+            inter_output.data = chromosome_filter.filter_data(inter_output.data, inter_output.metadata.interaction_type)
 
     def _apply_range_filtering(self, intra_output, inter_output):
         range_filter = FilterRanges(self.config)
@@ -64,26 +64,29 @@ class FilteringController:
             intra_output.data = range_filter.filter_select_regions(intra_output.data)
             inter_output.data = range_filter.filter_select_regions(inter_output.data)
 
-    def _apply_interaction_distance_filtering(self, intra_output, inter_output):
-        if self.config.pipeline_settings.min_interaction_range or self.config.pipeline_settings.max_interaction_range:
-            interaction_distance_filter = FilterInteractionDistances(self.config)
-            intra_output.data = interaction_distance_filter.filter_data(intra_output.data)
-            inter_output.data = interaction_distance_filter.filter_data(inter_output.data)
+    def _apply_interaction_distance_filtering(self, intra_output):
+        if self.metadata.interaction_type == "intra" and self.config.pipeline_settings.use_interaction_distance_filters:
+            # check resolution of data in metadata and compare to max and min interaction distance keys
+            if self.metadata.resolution in self.config.pipeline_settings.interaction_distance_filters:
+                interaction_distance_filter = FilterInteractionDistances(self.config)
+                intra_output.data = interaction_distance_filter.filter_data(intra_output.data)
+                print(intra_output.data)
 
     def _apply_blacklist_filtering(self, intra_output, inter_output):
         if self.config.pipeline_settings.filter_blacklist:
             blacklist_filter = RemoveBlacklistedRegions(self.config)
-            intra_output.data = blacklist_filter.filter_blacklist(intra_output.data)
-            inter_output.data = blacklist_filter.filter_blacklist(inter_output.data)
+            intra_output.data = blacklist_filter.filter_blacklist(intra_output.data, intra_output.metadata.resolution)
+            inter_output.data = blacklist_filter.filter_blacklist(inter_output.data, inter_output.metadata.resolution)
 
     def _apply_cytoband_filtering(self, intra_output, inter_output):
         if self.config.pipeline_settings.filter_cytobands:
-            intra_output.data = self.cytoband_filter.filter_cytobands(intra_output.data)
-            inter_output.data = self.cytoband_filter.filter_cytobands(inter_output.data)
+            intra_output.data = self.cytoband_filter.filter_cytobands(intra_output.data, intra_output.metadata.resolution)
+            inter_output.data = self.cytoband_filter.filter_cytobands(inter_output.data, inter_output.metadata.resolution)
 
     def _apply_bias_filtering(self, intra_output, inter_output):
-        if self.config.pipeline_settings.use_hicpro_bias:
+        if self.config.statistical_settings.use_hicpro_bias:
             bias_filter = FilterBias()
+            print(f"after filtering: {intra_output.data.head(5)}")
             intra_output.data = bias_filter.filter_bias(intra_output.data)
             inter_output.data = bias_filter.filter_bias(inter_output.data)
 
@@ -93,16 +96,24 @@ class FilteringController:
                         interaction_type=interaction_type,
                         bias_file_path=self.metadata.bias_file_path)
 
-    def _update_chromosomes_present_metadata(self, intra_metadata, inter_metadata):
-        if self.config.pipeline_settings.remove_chromosomes:
-            all_chromosomes = set(intra_metadata.interaction_count_per_chromosome.keys())
-            removed_chromosomes = set(self.config.pipeline_settings.remove_chromosomes)
-            remaining_chromosomes = list(all_chromosomes - removed_chromosomes)
-            intra_metadata.chromosomes_present = remaining_chromosomes
-            inter_metadata.chromosomes_present = remaining_chromosomes
-        elif self.config.pipeline_settings.select_chromosomes:
-            intra_metadata.chromosomes_present = self.config.pipeline_settings.select_chromosomes
-            inter_metadata.chromosomes_present = self.config.pipeline_settings.select_chromosomes
+    def _remove_metadata_for_filtered_chromosomes(self, intra_metadata):
+        if intra_metadata.interaction_count_per_chromosome_intra and self.config.statistical_settings.normalize_expected_frequency:
+            intra_metadata.interaction_count_per_chromosome_intra = {
+                k: v for k, v in intra_metadata.interaction_count_per_chromosome_intra.items()
+                if k in intra_metadata.chromosomes_present
+            }
+
+    @staticmethod
+    def _update_chromosomes_present_in_metadata(intra_output, inter_output):
+        if intra_output.metadata.interaction_type == "intra":
+            unique_chromosomes_intra = intra_output.data["chr_1"].unique().compute().tolist()
+            intra_output.metadata.chromosomes_present = unique_chromosomes_intra
+
+        if inter_output.metadata.interaction_type == "inter":
+            chromosomes_1 = inter_output.data["chr_1"].unique().compute().tolist()
+            chromosomes_2 = inter_output.data["chr_2"].unique().compute().tolist()
+            unique_chromosomes_inter = list(set(chromosomes_1 + chromosomes_2))
+            inter_output.metadata.chromosomes_present = unique_chromosomes_inter
 
     @staticmethod
     def _instantiate_output(data, metadata):

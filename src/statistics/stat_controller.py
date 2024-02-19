@@ -17,7 +17,7 @@ class StatController:
         self.metadata = filtering_output.metadata
         self.data = filtering_output.data
 
-    def run_stats(self):
+    def run(self):
         if self.metadata.interaction_type == "intra":
             return self._process_intra_stats()
         elif self.metadata.interaction_type == "inter":

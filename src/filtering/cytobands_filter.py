@@ -24,12 +24,12 @@ class RemoveCytobandRegions:
         self.config = config
         self.cytoband_regions = CytobandHelper.get_cytoband_regions(config)
 
-    def filter_single_partition(self, partition: pd.DataFrame) -> pd.DataFrame:
+    def filter_single_partition(self, partition: pd.DataFrame, resolution) -> pd.DataFrame:
         pbt_partition = pbt.BedTool.from_dataframe(partition)
-        filtered_partition = pbt_partition.window(self.cytoband_regions, v=True)
-        filtered_partition_df = filtered_partition.to_dataframe()
+        filtered_partition = pbt_partition.window(self.cytoband_regions, r=False, v=True, w=resolution)
+        filtered_partition_df = filtered_partition.to_dataframe(names=["chr_1", "start_1", "end_1", "chr_2", "start_2", "end_2", "interaction_count", "idx_1", "idx_2", "bias_1", "bias_2"])
         return filtered_partition_df
 
-    def filter_cytobands(self, bedpe_ddf: dd.DataFrame) -> dd.DataFrame:
-        filtered_partitions = bedpe_ddf.map_partitions(self.filter_single_partition)
+    def filter_cytobands(self, bedpe_ddf: dd.DataFrame, resolution) -> dd.DataFrame:
+        filtered_partitions = bedpe_ddf.map_partitions(self.filter_single_partition, resolution)
         return filtered_partitions

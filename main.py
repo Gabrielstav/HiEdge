@@ -50,9 +50,12 @@ class Pipeline:
         print(f"Writing output!")
 
     def _execute_in_parallel(self, inputs, controller_class) -> List:
-        # Create delayed objects for each contrller class
-        delayed_tasks = [delayed(controller_class)(self.config, input_obj) for input_obj in inputs]
-        delayed_runs = [task.run() for task in delayed_tasks]
+        # Ensure inputs is a list for uniform processing
+        if not isinstance(inputs, list):
+            inputs = [inputs]
+
+        # Create delayed tasks for running each controller class instance
+        delayed_runs = [delayed(controller_class(self.config, input_obj).run()) for input_obj in inputs]
 
         print(f"Starting parallel execution of {controller_class.__name__} with {len(inputs)} input(s).")
 
@@ -60,9 +63,11 @@ class Pipeline:
             print("No tasks to execute.")
             return []
 
-        # Execute in parallel and return the results
+        # Execute tasks in parallel and collect the results
         results = compute(*delayed_runs)
-        return results[0]
+
+        # Results are returned as a tuple, convert to list if multiple results, else return single result
+        return list(results) if len(inputs) > 1 else results[0]
 
     def _load_config(self) -> Config:
         config_mapper = InstantiateConfig(self.config_path)

@@ -2,6 +2,7 @@
 
 # Import modules
 from src.setup.config_loader import Config
+from src.setup.config_loader import GenomicRange as Gr
 import dask.dataframe as dd
 import pandas as pd
 
@@ -9,6 +10,7 @@ class FilterRanges:
 
     def __init__(self, config: Config):
         self.config = config
+        self.gr = Gr
         self.region_type = self._determine_region_type()
         self.transformed_regions = self._transform_regions()
         self.cached_omit_dict = None
@@ -24,8 +26,8 @@ class FilterRanges:
 
     def _transform_regions(self):
         regions = self.config.pipeline_settings.select_regions if self.region_type == "select" else self.config.pipeline_settings.omit_regions
-        rows = [{"chromosome": chromosome, "start": genomic_range.start, "end": genomic_range.end}
-                for chromosome, ranges in regions.items() for genomic_range in ranges]
+        rows = [{"chromosome": chromosome, "start": self.gr.start, "end": self.gr.end}
+                for chromosome, ranges in regions.items() for self.gr in ranges]
         return pd.DataFrame(rows)
 
     @staticmethod
@@ -57,18 +59,26 @@ class FilterRanges:
                 omit_series = omit_series | overlap_cond
         return ~omit_series
 
-    def filter_omit_regions(self, data: dd.DataFrame) -> dd.DataFrame:
+    def filter_omit_regions(self, data) -> dd.DataFrame:
+        # Ensure data is a Dask DataFrame
+        if not isinstance(data, dd.DataFrame):
+            data = dd.from_pandas(data, npartitions=1)
+
         omit_dict = self._get_omit_dict()
         mask = data.map_partitions(
             lambda df: self._check_overlap_batch(df, omit_dict),
-            meta=bool
+            meta=pd.Series(dtype=bool)
         )
         return data[mask]
 
-    def filter_select_regions(self, data: dd.DataFrame) -> dd.DataFrame:
+    def filter_select_regions(self, data) -> dd.DataFrame:
+        # Ensure data is a Dask DataFrame
+        if not isinstance(data, dd.DataFrame):
+            data = dd.from_pandas(data, npartitions=1)
+
         select_dict = self._get_select_dict()
         mask = data.map_partitions(
             lambda df: self._check_overlap_batch(df, select_dict),
-            meta=bool
+            meta=pd.Series(dtype=bool)
         )
         return data[mask]
