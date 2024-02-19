@@ -21,14 +21,14 @@ class BiasMerger:
         bias_df["idx"] += 1  # Set start index to match index of interaction DataFrame (from matrix id)
 
         # Merge bias values based on idx with interaction DataFrame
-        self.interaction_df = self.merge_bias_with_interaction(self.interaction_df, bias_df, self.bed_length)
+        self.interaction_df = self._merge_bias_with_interaction(self.interaction_df, bias_df, self.bed_length)
         print(f"After merging: {self.interaction_df.head(10)}")
 
         return self.interaction_df
 
     def _read_and_process_bias(self):
         # Read bias file into a Dask DataFrame
-        bias_df = dd.read_csv(self.bias_file_path, sep="\t", header=None, names=["bias_value"], encoding="latin-1")
+        bias_df = dd.read_csv(self.bias_file_path, sep="\t", header=None, names=["bias_value"])
 
         # Replace "nan" string with -1 bias
         bias_df["bias_value"] = bias_df["bias_value"].mask(bias_df["bias_value"] == "nan", -1).astype(float)
@@ -42,7 +42,7 @@ class BiasMerger:
         return bias_series
 
     @staticmethod
-    def merge_bias_with_interaction(interaction_ddf, bias_df, bed_length):
+    def _merge_bias_with_interaction(interaction_ddf, bias_df, bed_length):
         # Ensure bias_df is extended to match bed_length if necessary
         if bed_length and len(bias_df) < bed_length:
             # Assuming 'idx' is a continuous range from 0 to bed_length-1
