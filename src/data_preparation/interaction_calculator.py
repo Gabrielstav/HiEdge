@@ -4,34 +4,32 @@
 from src.setup.config_loader import Config
 
 class InteractionCalculator:
-    def __init__(self, config: Config, data):
-        self.config = config
+    def __init__(self, data):
         self.data = data  # interaction dask dataframe
 
     def calculate_intra_interactions(self):
-        """
-        Calculate total possible intrachromosomal interactions and interactions per chromosome for intra.
-        """
-        # chr_1 is used for intra calculations
         chrom_counts = self.data["chr_1"].value_counts().compute()
+        total_possible_intra = 0
+        intra_counts_per_chromosome = {}
 
-        total_bins = chrom_counts.sum()
-        intra_counts = (chrom_counts * (chrom_counts + 1)) // 2
-        total_possible_intra = intra_counts.sum()
+        for chrom, count in chrom_counts.items():
+            intra_counts = (count * (count + 1)) // 2
+            total_possible_intra += intra_counts
+            intra_counts_per_chromosome[chrom] = intra_counts
 
-        return total_possible_intra, intra_counts.to_dict()
+        return total_possible_intra, intra_counts_per_chromosome
 
     def calculate_inter_interactions(self):
-        """
-        Calculate total possible interchromosomal interactions and interactions per chromosome for inter.
-        """
-        # chr_1 and chr_2 are used for inter calculations
-        chrom_counts_1 = self.data["chr_1"].value_counts().compute()
-        chrom_counts_2 = self.data["chr_2"].value_counts().compute()
-        combined_chrom_counts = chrom_counts_1.add(chrom_counts_2, fill_value=0)
+        chrom_counts = {chrom: self.data[self.data["chr_1"] == chrom]["chr_1"].count().compute() for chrom in self.data["chr_1"].unique()}
+        total_bins = sum(chrom_counts.values())
+        total_possible_inter = 0
 
-        total_bins = combined_chrom_counts.sum()
-        inter_counts = combined_chrom_counts * (total_bins - combined_chrom_counts)
-        total_possible_inter = inter_counts.sum() // 2  # Divide by 2 to avoid double counting
+        for chrom, n in chrom_counts.items():
+            # Subtract current chromosome's bin count from total to calculate interchromosomal pairs
+            inter_count_for_chrom = n * (total_bins - n)
+            total_possible_inter += inter_count_for_chrom
 
-        return total_possible_inter, combined_chrom_counts.to_dict()
+        # Divide by 2 to avoid double counting
+        total_possible_inter /= 2
+
+        return total_possible_inter

@@ -94,8 +94,7 @@ class StatisticalSettings(BaseModel):
     use_hicpro_bias: bool
     bias_lower_bound: float
     bias_upper_bound: float
-    normalize_inter_expected_frequency: bool
-    normalize_intra_expected_frequency: bool
+    normalize_expected_frequency: bool
 
 
 class DaskSettings(BaseModel):

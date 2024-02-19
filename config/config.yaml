@@ -57,7 +57,6 @@ pipeline_settings:
   omit_regions:
     chr2:
       - 0-20000000
-      - 30-40
 
   use_interaction_distance_filters: True  # If true, filter out interactions based on distance
   interaction_distance_filters:
@@ -76,8 +75,8 @@ statistical_settings:
   use_hicpro_bias: True  # If true, use bias files from HiC-Pro for adjusting expected interaction frequencies before statistical testing. If false, no bias files are used.
   bias_lower_bound: 0.5  # Lower bound for bias values for filtering
   bias_upper_bound: 2.0  # Upper bound for bias values for filtering
-  normalize_inter_expected_frequency: False  # If true, normalize expected interaction count by total interaction count for interchromosomal interactions
-  normalize_intra_expected_frequency: False  # If true, normalize expected interaction count by total interaction count for intrachromosomal interactions
+  normalize_expected_frequency: False  # If true, normalize expected interaction count by total interaction count and use this to adjust expected interaction frequency in statistical testing
+
 
 dask_settings:
   # Dataframe

@@ -29,30 +29,29 @@ class DataPreparationController:
         return InteractionOutput(metadata=self.grouped_files.metadata, data=interaction_df)
 
     def calculate_interactions_based_on_config(self, interaction_df):
-        if self.config.statistical_settings.normalize_intra_expected_frequency or self.config.statistical_settings.normalize_inter_expected_frequency:
-            interaction_calculator = InteractionCalculator(self.config, interaction_df)
-            self._calculate_and_update_interactions(interaction_calculator)
+        if self.config.statistical_settings.normalize_expected_frequency:
+            self._calculate_and_update_interactions(interaction_df)
 
-    def _calculate_and_update_interactions(self, interaction_calculator):
+    def _calculate_and_update_interactions(self, interaction_df):
+        # Pass the interaction dataframe to the InteractionCalculator at initialization
+        interaction_calculator = InteractionCalculator(interaction_df)
+
         # Initialize placeholders for results
-        results = {
-            "total_possible_intra": None,
-            "total_possible_inter": None,
-            "interaction_count_per_chromosome_intra": None,
-            "interaction_count_per_chromosome_inter": None
-        }
+        total_intra = total_inter = interaction_count_per_chromosome_intra = None
 
-        if self.config.statistical_settings.normalize_intra_expected_frequency:
-            results["total_possible_intra"], results["interaction_count_per_chromosome_intra"] = interaction_calculator.calculate_intra_interactions()
+        if self.config.pipeline_settings.interaction_type in ["mixed", "intra"]:
+            # Now calling the method without passing the dataframe
+            total_intra, interaction_count_per_chromosome_intra = interaction_calculator.calculate_intra_interactions()
 
-        if self.config.statistical_settings.normalize_inter_expected_frequency:
-            results["total_possible_inter"], results["interaction_count_per_chromosome_inter"] = interaction_calculator.calculate_inter_interactions()
+        if self.config.pipeline_settings.interaction_type in ["mixed", "inter"]:
+            # Now calling the method without passing the dataframe
+            total_inter = interaction_calculator.calculate_inter_interactions()
 
-        self._update_metadata_with_interactions(results)
+        # Update metadata based on the calculated values
+        self._update_metadata_with_interactions(total_intra, total_inter, interaction_count_per_chromosome_intra)
 
-    def _update_metadata_with_interactions(self, results):
+    def _update_metadata_with_interactions(self, total_intra, total_inter, interaction_count_per_chromosome_intra):
         # Directly update the metadata within grouped_files
-        self.grouped_files.metadata.max_possible_interaction_count_intra = results["total_possible_intra"]
-        self.grouped_files.metadata.max_possible_interaction_count_inter = results["total_possible_inter"]
-        self.grouped_files.metadata.interaction_count_per_chromosome_intra = results.get("interaction_count_per_chromosome_intra")
-        self.grouped_files.metadata.interaction_count_per_chromosome_inter = results.get("interaction_count_per_chromosome_inter")
+        self.grouped_files.metadata.max_possible_interaction_count_intra = total_intra
+        self.grouped_files.metadata.max_possible_interaction_count_inter = total_inter
+        self.grouped_files.metadata.interaction_count_per_chromosome_intra = interaction_count_per_chromosome_intra

@@ -54,23 +54,15 @@ class Pipeline:
         delayed_tasks = [delayed(controller_class)(self.config, input_obj) for input_obj in inputs]
         delayed_runs = [task.run() for task in delayed_tasks]
 
-        # Debugging output
-        print(f"Executing {len(delayed_runs)} tasks in parallel.")
+        print(f"Starting parallel execution of {controller_class.__name__} with {len(inputs)} input(s).")
 
         if not delayed_runs:
             print("No tasks to execute.")
             return []
 
-        results = compute(*delayed_runs)
-
-        # Check if results tuple is not empty before indexing
-        if results:
-            print(results[0])
-        else:
-            print("No results returned from compute.")
-
         # Execute in parallel and return the results
-        return compute(*delayed_runs)[0]  # returns the first element of compute tuple, list of results
+        results = compute(*delayed_runs)
+        return results[0]
 
     def _load_config(self) -> Config:
         config_mapper = InstantiateConfig(self.config_path)

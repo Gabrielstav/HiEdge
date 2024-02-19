@@ -15,7 +15,6 @@ class Metadata:
     max_possible_interaction_count_intra: Optional[int] = None
     max_possible_interaction_count_inter: Optional[int] = None
     interaction_count_per_chromosome_intra: Optional[dict] = None
-    interaction_count_per_chromosome_inter: Optional[dict] = None
     chromosomes_present: Optional[list[str]] = None
 
 @dataclass
