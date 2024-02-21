@@ -4,12 +4,18 @@
 import yaml
 from typing import List, Dict, Optional
 from pathlib import Path
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, field_validator
+from pydantic.dataclasses import dataclass
 
 
 class GenomicRange(BaseModel):
     start: int
     end: int
+
+    @staticmethod
+    def from_string(s: str):
+        start, end = map(int, s.split("-"))
+        return GenomicRange(start=start, end=end)
 
 class InteractionDistanceFilter(BaseModel):
     min_distance: int
@@ -47,8 +53,8 @@ class Paths(BaseModel):
     def tmp_dir(self):
         return self.run_dir / "tmp"
 
-
-class PipelineSettings(BaseModel):
+@dataclass
+class PipelineSettings:
     reference_genome: str
     hicpro_raw_dirname: str
     hicpro_norm_dirname: str
@@ -62,19 +68,25 @@ class PipelineSettings(BaseModel):
     remove_chromosomes: List[str]
     select_chromosomes: List[str]
     select_specific_regions: bool
-    select_regions: Dict[str, List[str]] = Field(default_factory=dict)
-    omit_regions: Dict[str, List[str]] = Field(default_factory=dict)
+    omit_specific_regions: bool
     use_interaction_distance_filters: bool
     interaction_distance_filters: Dict[int, InteractionDistanceFilter]
     output_format: str
+    select_regions: Optional[Dict[str, List[str]]] = None
+    omit_regions: Optional[Dict[str, List[str]]] = None
 
-    @field_validator("select_regions", "omit_regions")
-    def convert_ranges_to_objects(cls, v: Dict[str, List[str]]):
-        parsed = {}
-        for chrom, ranges in v.items():
-            range_objects = [GenomicRange(start=int(r.split("-")[0]), end=int(r.split("-")[1])) for r in ranges]
-            parsed[chrom] = range_objects
-        return parsed
+    def __post_init__(self):
+        if self.select_regions is not None:
+            self.select_regions = self.convert_ranges(self.select_regions)
+        if self.omit_regions is not None:
+            self.omit_regions = self.convert_ranges(self.omit_regions)
+
+    @staticmethod
+    def convert_ranges(regions: Dict[str, List[str]]) -> Dict[str, List[GenomicRange]]:
+        return {
+            chrom: [GenomicRange.from_string(range_str) for range_str in ranges]
+            for chrom, ranges in regions.items()
+        }
 
     @field_validator("interactions_distance_filters", check_fields=False)
     def validate_interaction_distance_filters(cls, v: Dict[int, InteractionDistanceFilter]):
@@ -82,8 +94,6 @@ class PipelineSettings(BaseModel):
         for k, val in v.items():
             if not isinstance(k, int):
                 raise ValueError(f"Keys in interaction_distance_filters must be integers, got {type(k).__name__}")
-            if not isinstance(val, InteractionDistanceFilter):
-                raise ValueError(f"Values in interaction_distance_filters must be InteractionDistanceFilter instances (integers), got {type(val).__name__}")
             parsed[k] = val
 
 

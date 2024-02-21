@@ -48,15 +48,18 @@ pipeline_settings:
   select_specific_regions: False
   select_regions:
     chr1:
-      - 0-10000000
-      - 20000000-30000000
+      - 8000000-9000000
     chr2:
-      - 1000000-2000000
+        - 240000000-250000000
+        - 236000000-237000000
 
-  omit_specific_regions: True
+  omit_specific_regions: False
   omit_regions:
     chr1:
-      - 0-20000000
+      - 0-1000000
+    chr2:
+      - 240000000-250000000
+      - 236000000-237000000
 
   use_interaction_distance_filters: True  # If true, filter out interactions based on distance
   interaction_distance_filters:

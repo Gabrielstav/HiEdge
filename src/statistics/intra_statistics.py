@@ -162,3 +162,14 @@ class DistanceFilter:
             self.data = self.data[(self.data["genomic_distance"] >= lower_bound) & (self.data["genomic_distance"] <= upper_bound)]
 
         return self.data
+
+# TODO: cleaner implementation of filtering class:
+class FilterInteractionDistances:
+
+    def __init__(self, config: Config):
+        self.config = config
+        self.min_distance = self.config.pipeline_settings.min_interaction_range
+        self.max_distance = self.config.pipeline_settings.max_interaction_range
+
+    def filter_data(self, data: dd.DataFrame) -> dd.DataFrame:
+        return data[(data["genomic_distance"] >= self.min_distance) & (data["genomic_distance"] <= self.max_distance)]

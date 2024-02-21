@@ -5,79 +5,49 @@ from src.setup.config_loader import Config
 from src.setup.config_loader import GenomicRange as Gr
 import dask.dataframe as dd
 import pandas as pd
-from typing import Dict
+from typing import Dict, List
 
 class FilterRanges:
 
     def __init__(self, config: Config):
         self.config = config
-        self.gr = Gr
-        self.region_type = self._determine_region_type()
-        self.transformed_regions = self._transform_regions()
-        self.cached_omit_dict = None
-        self.cached_select_dict = None
-
-    def _determine_region_type(self):
-        if self.config.pipeline_settings.select_regions:
-            return "select"
-        elif self.config.pipeline_settings.omit_regions:
-            return "omit"
-        else:
-            return None
-
-    def _transform_regions(self) -> pd.DataFrame:
-        regions = self.config.pipeline_settings.select_regions if self.region_type == "select" else self.config.pipeline_settings.omit_regions
-        rows = [{"chromosome": chromosome, "start": self.gr.start, "end": self.gr.end}
-                for chromosome, ranges in regions.items() for self.gr in ranges]
-        return pd.DataFrame(rows)
+        self.select_regions = config.pipeline_settings.select_regions
+        self.omit_regions = config.pipeline_settings.omit_regions
 
     @staticmethod
-    def _preprocess_regions(transformed_regions):
-        region_dict = {}
-        for row in transformed_regions.itertuples(index=False):
-            region_dict.setdefault(row.chromosome, []).append((row.start, row.end))
-        return region_dict
-
-    def _get_omit_dict(self):
-        if self.cached_omit_dict is None:
-            self.cached_omit_dict = self._preprocess_regions(self.transformed_regions)
-        return self.cached_omit_dict
-
-    def _get_select_dict(self):
-        if self.cached_select_dict is None:
-            self.cached_select_dict = self._preprocess_regions(self.transformed_regions)
-        return self.cached_select_dict
-
-    @staticmethod
-    def _check_overlap_batch(df: pd.DataFrame, region_dict: Dict[str, list]):
-        omit_series = pd.Series(False, index=df.index)
-        for chromosome, regions in region_dict.items():
-            for start, end in regions:
+    def _check_overlap(df: pd.DataFrame, regions: Dict[str, List[Gr]]):
+        """Check if rows in df strictly overlap with any region in regions dict."""
+        mask = pd.Series(False, index=df.index)
+        for chrom, grs in regions.items():
+            for gr in grs:
+                # Adjusted overlap condition to exclude interactions where only the end matches the start of a range
                 overlap_cond = (
-                        ((df["chr_1"] == chromosome) & (df["start_1"] <= end) & (df["end_1"] >= start)) |
-                        ((df["chr_2"] == chromosome) & (df["start_2"] <= end) & (df["end_2"] >= start))
+                    ((df["chr_1"] == chrom) & (df["start_1"] < gr.end) & (df["end_1"] > gr.start)) |
+                    ((df["chr_2"] == chrom) & (df["start_2"] < gr.end) & (df["end_2"] > gr.start))
                 )
-                omit_series = omit_series | overlap_cond
-        return ~omit_series
+                mask |= overlap_cond
+        return mask
 
-    def filter_omit_regions(self, data: dd.DataFrame) -> dd.DataFrame:
+    def filter_regions(self, data: dd.DataFrame, regions: Dict[str, List[Gr]], keep: bool = True) -> dd.DataFrame:
+        """Filters data based on regions. If keep is True, keeps rows overlapping with regions; otherwise removes them."""
+
         if not isinstance(data, dd.DataFrame):
             data = dd.from_pandas(data, npartitions=1)
 
-        omit_dict = self._get_omit_dict()
         mask = data.map_partitions(
-            lambda df: self._check_overlap_batch(df, omit_dict),
-            meta=pd.Series(dtype=bool)
+            lambda partition: self._check_overlap(partition, regions),
+            meta=bool
         )
-        return data[mask]
+        if keep:
+            return data[mask]
+        else:
+            return data[~mask]
 
-    def filter_select_regions(self, data) -> dd.DataFrame:
-        if not isinstance(data, dd.DataFrame):
-            data = dd.from_pandas(data, npartitions=1)
-
-        select_dict = self._get_select_dict()
-        mask = data.map_partitions(
-            lambda df: self._check_overlap_batch(df, select_dict),
-            meta=pd.Series(dtype=bool)
-        )
-        return data[mask]
+    def apply_filters(self, data: dd.DataFrame) -> dd.DataFrame:
+        if self.config.pipeline_settings.select_specific_regions:
+            # Keep rows that overlap with select regions
+            return self.filter_regions(data, self.select_regions, keep=True)
+        elif self.config.pipeline_settings.omit_specific_regions:
+            # Remove rows that overlap with omit regions
+            return self.filter_regions(data, self.omit_regions, keep=False)
+        return data

@@ -68,10 +68,7 @@ class FilteringController:
 
     def _apply_range_filtering(self, output):
         range_filter = FilterRanges(self.config)
-        if self.config.pipeline_settings.omit_regions:
-            output.data = range_filter.filter_omit_regions(output.data)
-        elif self.config.pipeline_settings.select_regions:
-            output.data = range_filter.filter_select_regions(output.data)
+        output.data = range_filter.apply_filters(output.data)
 
     def _apply_interaction_distance_filtering(self, output):
         if self.metadata.interaction_type == "intra" and self.config.pipeline_settings.use_interaction_distance_filters:
@@ -79,7 +76,6 @@ class FilteringController:
             if self.metadata.resolution in self.config.pipeline_settings.interaction_distance_filters:
                 interaction_distance_filter = FilterInteractionDistances(self.config)
                 output.data = interaction_distance_filter.filter_data(output.data)
-                print(output.data)
 
     def _apply_blacklist_filtering(self, output):
         if self.config.pipeline_settings.filter_blacklist:

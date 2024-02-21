@@ -40,6 +40,7 @@ class StatController:
 
     def _prepare_intra_data(self, intra_data):
         midpoints = MidpointCalculator(self.config).calculate_midpoints(intra_data)
+        # TODO: Calculate distances then conditionally filter on them
         distances = DistanceCalculator(self.config).calculate_distances(midpoints)
         binned_data = EqualOccupancyBinner(self.config, intra_data).bin_data(distances)
         aggregated_data = FrequencyAggregator(self.config).aggregate_frequencies(binned_data)
