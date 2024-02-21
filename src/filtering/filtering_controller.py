@@ -8,6 +8,7 @@ from src.filtering.range_filter import FilterRanges
 from src.filtering.filtering_utils import SplitByInteractionType, FilterInteractionDistances, FilterBias
 from src.filtering.blacklist_filter import RemoveBlacklistedRegions
 from src.filtering.cytobands_filter import RemoveCytobandRegions
+from src.filtering.filtering_utils import chromosome_key_sort
 from typing import List
 
 
@@ -38,7 +39,7 @@ class FilteringController:
         self._apply_blacklist_filtering(intra_output, inter_output)
         self._apply_cytoband_filtering(intra_output, inter_output)
         self._apply_bias_filtering(intra_output, inter_output)
-        self._update_chromosomes_present_in_metadata(intra_output, intra_output)
+        self._update_chromosomes_present_in_metadata(intra_output, inter_output)
         self._remove_metadata_for_filtered_chromosomes(intra_metadata)
 
         return [intra_output, inter_output]
@@ -107,12 +108,15 @@ class FilteringController:
     def _update_chromosomes_present_in_metadata(intra_output, inter_output):
         if intra_output.metadata.interaction_type == "intra":
             unique_chromosomes_intra = intra_output.data["chr_1"].unique().compute().tolist()
+            chromosome_key_sort(unique_chromosomes_intra)
             intra_output.metadata.chromosomes_present = unique_chromosomes_intra
 
         if inter_output.metadata.interaction_type == "inter":
             chromosomes_1 = inter_output.data["chr_1"].unique().compute().tolist()
             chromosomes_2 = inter_output.data["chr_2"].unique().compute().tolist()
+            print(chromosomes_1, chromosomes_2)
             unique_chromosomes_inter = list(set(chromosomes_1 + chromosomes_2))
+            chromosome_key_sort(unique_chromosomes_inter)
             inter_output.metadata.chromosomes_present = unique_chromosomes_inter
 
     @staticmethod

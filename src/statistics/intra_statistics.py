@@ -22,7 +22,7 @@ class DataPreparationController:
         computed_data = filtered_data.compute() if isinstance(filtered_data, dd.DataFrame) else filtered_data
         return SplineInput(metadata=self.input_data.metadata, data=computed_data)
 
-    def _filter_genomic_distances(self, data):
+    def _filter_genomic_distances(self, data: dd.DataFrame) -> dd.DataFrame:
         resolution = self.input_data.metadata.resolution
         if resolution in self.config.pipeline_settings.interaction_distance_filters:
             distance_filter = DistanceFilter(self.config, data, resolution)
@@ -30,7 +30,7 @@ class DataPreparationController:
 
         return data
 
-    def _prepare_data_for_spline(self, data) -> dd.DataFrame:
+    def _prepare_data_for_spline(self, data: dd.DataFrame) -> dd.DataFrame:
         midpoint_calculator = MidpointCalculator(self.config)
         data_with_midpoints = midpoint_calculator.calculate_midpoints(data)
 
@@ -60,7 +60,7 @@ class MidpointCalculator:
     def calculate_midpoints(data: dd.DataFrame) -> dd.DataFrame:
         data["midpoint_1"] = ((data["start_1"] + data["end_1"]) / 2).astype("int32")
         data["midpoint_2"] = ((data["start_2"] + data["end_2"]) / 2).astype("int32")
-        return data.persist()
+        return data
 
 
 class DistanceCalculator:
@@ -71,25 +71,25 @@ class DistanceCalculator:
     @staticmethod
     def calculate_distances(data: dd.DataFrame) -> dd.DataFrame:
         data["genomic_distance"] = abs(data["midpoint_1"] - data["midpoint_2"]).astype("int32")
-        return data.persist()
+        return data
 
 
 class EqualOccupancyBinner:
 
-    def __init__(self, config, input_data):
+    def __init__(self, config, input_data: dd.DataFrame):
         self.config = config
         self.input_data = input_data
 
     @staticmethod
-    def sort_data_by_distance(input_data) -> dd.DataFrame:
+    def sort_data_by_distance(input_data: dd.DataFrame) -> dd.DataFrame:
         return input_data.sort_values("genomic_distance")
 
     @staticmethod
-    def calculate_total_contacts(data) -> dd.DataFrame:
-        return data["interaction_count"].sum().compute()
+    def calculate_total_contacts(data: dd.DataFrame) -> dd.DataFrame:
+        return data["interaction_count"].sum()  # .compute()
 
     @staticmethod
-    def assign_to_bins(sorted_data, total_contacts, num_bins):
+    def assign_to_bins(sorted_data: dd.DataFrame, total_contacts: dd.DataFrame, num_bins: dd.DataFrame) -> dd.DataFrame:
         target_per_bin = total_contacts / num_bins
         sorted_data["cumulative_count"] = sorted_data["interaction_count"].cumsum()
         sorted_data["bin_label"] = (sorted_data["cumulative_count"] / target_per_bin).astype("int")
@@ -100,7 +100,7 @@ class EqualOccupancyBinner:
         return sorted_data
 
     @staticmethod
-    def apply_tiebreak_condition(data):
+    def apply_tiebreak_condition(data: dd.DataFrame) -> dd.DataFrame:
         # Logic for applying the tiebreak condition
         data["needs_tiebreak"] = (
             (data["genomic_distance"] == data["genomic_distance"].shift(1)) &
@@ -117,7 +117,7 @@ class EqualOccupancyBinner:
         return data
 
     @staticmethod
-    def calculate_bin_statistics(data_binned):
+    def calculate_bin_statistics(data_binned: dd.DataFrame) -> dd.DataFrame:
         # Calculate average genomic distance and contact probability for each bin
         bin_stats = data_binned.groupby("bin_label").agg({
             "genomic_distance": "mean",
@@ -126,7 +126,7 @@ class EqualOccupancyBinner:
         bin_stats.columns = ["average_distance", "average_contact_probability", "total_contacts"]
         return bin_stats
 
-    def bin_data(self, data):
+    def bin_data(self, data: dd.DataFrame) -> dd.DataFrame:
         sorted_data = self.sort_data_by_distance(data)
         total_contacts = self.calculate_total_contacts(data)
         binned_data = self.assign_to_bins(sorted_data, total_contacts, self.config.number_of_bins)
@@ -145,7 +145,7 @@ class FrequencyAggregator:
             "interaction_count": ["sum", "mean", "std"]
         }).reset_index()
         aggregated_data.columns = ["genomic_distance", "interaction_sum", "interaction_mean", "interaction_std"]
-        return aggregated_data.persist()
+        return aggregated_data
 
 
 class DistanceFilter:

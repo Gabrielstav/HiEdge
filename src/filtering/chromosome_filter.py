@@ -34,7 +34,7 @@ class FilterChromosomes:
         if interaction_type == "intra":
             return data[data["chr_1"].isin(self.chromosomes)]
         elif interaction_type == "inter":
-            in_chromosomes = data["chr_1"].isin(self.chromosomes) | data["chr_2"].isin(self.chromosomes)
+            in_chromosomes = data["chr_1"].isin(self.chromosomes) & data["chr_2"].isin(self.chromosomes)
             return data[in_chromosomes]
         return data
 
@@ -42,6 +42,6 @@ class FilterChromosomes:
         if interaction_type == "intra":
             return data[~data["chr_1"].isin(self.chromosomes)]
         elif interaction_type == "inter":
-            not_in_chromosomes = ~data["chr_1"].isin(self.chromosomes) & ~data["chr_2"].isin(self.chromosomes)
+            not_in_chromosomes = ~data["chr_1"].isin(self.chromosomes) | ~data["chr_2"].isin(self.chromosomes)
             return data[not_in_chromosomes]
         return data
