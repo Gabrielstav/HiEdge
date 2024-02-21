@@ -23,7 +23,7 @@ class InterStatisticsCalculator:
         self.data = data
         self.config = config
 
-    def compute_inter_stats(self):
+    def compute_inter_stats(self) -> int:
         # Filter for interchromosomal interactions
         inter_data = self.data[self.data["chr_1"] != self.data["chr_2"]]
 
@@ -37,6 +37,6 @@ class InterStatisticsCalculator:
         return interdata_count
 
     @staticmethod
-    def calculate_interaction_probabilities(interdata_count):
+    def calculate_interaction_probabilities(interdata_count) -> float:
         inter_probability = 1 / interdata_count
         return inter_probability

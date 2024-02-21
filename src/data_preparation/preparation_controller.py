@@ -6,6 +6,8 @@ from src.data_preparation.bias_merger import BiasMerger
 from src.data_preparation.interaction_creator import InteractionCreator
 from src.setup.data_structures import InteractionOutput
 from src.setup.config_loader import Config
+from typing import Dict
+import dask.dataframe as dd
 
 class DataPreparationController:
 
@@ -28,11 +30,11 @@ class DataPreparationController:
 
         return InteractionOutput(metadata=self.grouped_files.metadata, data=interaction_df)
 
-    def calculate_interactions_based_on_config(self, interaction_df):
+    def calculate_interactions_based_on_config(self, interaction_df: dd.DataFrame):
         if self.config.statistical_settings.normalize_expected_frequency:
             self._calculate_and_update_interactions(interaction_df)
 
-    def _calculate_and_update_interactions(self, interaction_df):
+    def _calculate_and_update_interactions(self, interaction_df: dd.DataFrame):
         # Pass the interaction dataframe to the InteractionCalculator at initialization
         interaction_calculator = InteractionCalculator(interaction_df)
 
@@ -50,7 +52,7 @@ class DataPreparationController:
         # Update metadata based on the calculated values
         self._update_metadata_with_interactions(total_intra, total_inter, interaction_count_per_chromosome_intra)
 
-    def _update_metadata_with_interactions(self, total_intra, total_inter, interaction_count_per_chromosome_intra):
+    def _update_metadata_with_interactions(self, total_intra: int, total_inter: int, interaction_count_per_chromosome_intra: Dict[str, int]):
         # Directly update the metadata within grouped_files
         self.grouped_files.metadata.max_possible_interaction_count_intra = total_intra
         self.grouped_files.metadata.max_possible_interaction_count_inter = total_inter

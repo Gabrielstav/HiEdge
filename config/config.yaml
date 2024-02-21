@@ -45,17 +45,17 @@ pipeline_settings:
   remove_chromosomes: ["chr3", "chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from filtering. Empty list means no chromosomes are selected.
   select_chromosomes: ["chr1", "chr2"] # List of strings of chromosome(s) to include in filtering, all chromosomes not selected are omitted. Empty list means no speciic chromosomes are selected.
 
-  select_specific_regions: false
+  select_specific_regions: False
   select_regions:
     chr1:
       - 0-10000000
       - 20000000-30000000
     chr2:
-      - 20000000-30000000
+      - 1000000-2000000
 
-  omit_specific_regions: false
+  omit_specific_regions: True
   omit_regions:
-    chr2:
+    chr1:
       - 0-20000000
 
   use_interaction_distance_filters: True  # If true, filter out interactions based on distance

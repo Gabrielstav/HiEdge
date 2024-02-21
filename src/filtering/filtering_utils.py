@@ -35,7 +35,7 @@ class FilterBias:
 
 
 def chromosome_key_sort(chromosomes):
-    custom_order = {"X": 24, "Y": 25, "m": 26}
+    custom_order = {"X": 24, "Y": 25, "M": 26}
 
     def sort_key(chromosome):
         num_part = "".join([char for char in chromosome if char.isdigit()])

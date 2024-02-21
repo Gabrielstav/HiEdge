@@ -32,4 +32,6 @@ class RemoveCytobandRegions:
 
     def filter_cytobands(self, bedpe_ddf: dd.DataFrame, resolution) -> dd.DataFrame:
         filtered_partitions = bedpe_ddf.map_partitions(self.filter_single_partition, resolution)
+        if not isinstance(filtered_partitions, dd.DataFrame):
+            print("Filtered partitions are not a dask dataframe!")
         return filtered_partitions

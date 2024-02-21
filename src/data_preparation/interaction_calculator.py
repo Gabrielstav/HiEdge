@@ -2,9 +2,10 @@
 
 # Import modules
 from src.setup.config_loader import Config
+import dask.dataframe as dd
 
 class InteractionCalculator:
-    def __init__(self, data):
+    def __init__(self, data: dd.DataFrame):
         self.data = data  # interaction dask dataframe
 
     def calculate_intra_interactions(self):

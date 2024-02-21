@@ -85,8 +85,8 @@ class EqualOccupancyBinner:
         return input_data.sort_values("genomic_distance")
 
     @staticmethod
-    def calculate_total_contacts(data: dd.DataFrame) -> dd.DataFrame:
-        return data["interaction_count"].sum()  # .compute()
+    def calculate_total_contacts(data: dd.DataFrame) -> int:
+        return data["interaction_count"].sum()
 
     @staticmethod
     def assign_to_bins(sorted_data: dd.DataFrame, total_contacts: dd.DataFrame, num_bins: dd.DataFrame) -> dd.DataFrame:

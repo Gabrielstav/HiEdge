@@ -1,8 +1,6 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
-from src.setup.config_loader import Config
-from src.setup.data_structures import SplineInput
 import pandas as pd
 import dask.dataframe as dd
 
@@ -10,7 +8,7 @@ class FDRCalculator:
 
     def __init__(self, config, data):
         self.config = config
-        self.data = data
+        self.data: dd.DataFrame = data
         self.metadata = data.metadata
         self.p_value_column = "p_value"
 
@@ -27,7 +25,7 @@ class FDRCalculator:
         else:
             return self._sequential_fdr()
 
-    def _partition_based_fdr(self, num_partitions):
+    def _partition_based_fdr(self, num_partitions: int) -> dd.DataFrame:
         data_partitioned = self.data.map_partitions(
             lambda df: pd.qcut(df[self.p_value_column].rank(method="first"), num_partitions, labels=False),
             meta=("partition", "int64")
@@ -38,7 +36,7 @@ class FDRCalculator:
         )
         return adjusted_partitions.drop("partition", axis=1).reset_index(drop=True)
 
-    def _apply_bh_within_partition(self, df):
+    def _apply_bh_within_partition(self, df: pd.DataFrame) -> pd.DataFrame:
         df_sorted = df.sort_values(self.p_value_column)
         m = len(df_sorted)
         df_sorted["adjusted_p"] = [
@@ -46,7 +44,7 @@ class FDRCalculator:
         ]
         return df_sorted
 
-    def _sequential_fdr(self):
+    def _sequential_fdr(self) -> dd.DataFrame:
         collected_data = self.data.compute()
         sorted_data = collected_data.sort_values(self.p_value_column)
         m = len(sorted_data)
@@ -58,13 +56,12 @@ class FDRCalculator:
     def _get_fdr_threshold(self):
         if self.metadata.interaction_type == "intra":
             return self.config.fdr_threshold_intra
-        elif self.metadata.interaction_type == "inter":
-            return self.config.fdr_threshold_inter
         else:
-            raise ValueError("Unknown interaction type ")  # TODO: Remove this after making config validation
+            return self.config.fdr_threshold_inter
 
     @staticmethod
     def _apply_fdr_threshold(fdr_results, fdr_threshold):
+        # TODO: This threshold is calculate from max possible interaction metadata (1/max)
         return fdr_results[fdr_results["adjusted_p"] <= fdr_threshold]
 
 

@@ -8,7 +8,6 @@ from src.statistics.spline_fit import SplineDataPreparer, SplineFitter, SplineAn
 from src.statistics.pvals import IntraPValueCalculator, InterPValueCalculator
 from src.statistics.fdr import FDRCalculator
 from src.setup.config_loader import Config
-import dask.dataframe as dd
 
 class StatController:
 
