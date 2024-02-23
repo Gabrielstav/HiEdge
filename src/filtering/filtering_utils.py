@@ -16,17 +16,6 @@ class SplitByInteractionType:
         return intra_df, inter_df
 
 
-class FilterInteractionDistances:
-
-    def __init__(self, config: Config):
-        self.config = config
-        self.min_distance = self.config.pipeline_settings.min_interaction_range
-        self.max_distance = self.config.pipeline_settings.max_interaction_range
-
-    def filter_data(self, data: dd.DataFrame) -> dd.DataFrame:
-        return data[(data["genomic_distance"] >= self.min_distance) & (data["genomic_distance"] <= self.max_distance)]
-
-
 class FilterBias:
     @staticmethod
     def filter_bias(data: dd.DataFrame) -> dd.DataFrame:

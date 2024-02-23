@@ -4,6 +4,7 @@
 from src.setup.config_loader import Config
 from src.setup.data_structures import SplineInput
 import dask.dataframe as dd
+import numpy as np
 
 class DataPreparationController:
 
@@ -76,7 +77,7 @@ class DistanceCalculator:
 
 class EqualOccupancyBinner:
 
-    def __init__(self, config, input_data: dd.DataFrame):
+    def __init__(self, config: Config, input_data: dd.DataFrame):
         self.config = config
         self.input_data = input_data
 
@@ -89,10 +90,10 @@ class EqualOccupancyBinner:
         return data["interaction_count"].sum()
 
     @staticmethod
-    def assign_to_bins(sorted_data: dd.DataFrame, total_contacts: dd.DataFrame, num_bins: dd.DataFrame) -> dd.DataFrame:
+    def assign_to_bins(sorted_data: dd.DataFrame, total_contacts: int, num_bins: int) -> dd.DataFrame:
         target_per_bin = total_contacts / num_bins
         sorted_data["cumulative_count"] = sorted_data["interaction_count"].cumsum()
-        sorted_data["bin_label"] = (sorted_data["cumulative_count"] / target_per_bin).astype("int")
+        sorted_data["metabin_label"] = (sorted_data["cumulative_count"] / target_per_bin).astype("int")
 
         # Handle the tiebreak condition
         sorted_data = EqualOccupancyBinner.apply_tiebreak_condition(sorted_data)
@@ -101,37 +102,66 @@ class EqualOccupancyBinner:
 
     @staticmethod
     def apply_tiebreak_condition(data: dd.DataFrame) -> dd.DataFrame:
-        # Logic for applying the tiebreak condition
+
+        # Determine if tiebreak is needed
         data["needs_tiebreak"] = (
             (data["genomic_distance"] == data["genomic_distance"].shift(1)) &
-            (data["bin_label"] != data["bin_label"].shift(1))
+            (data["metabin_label"] != data["metabin_label"].shift(1))
         )
 
         # Adjust bin labels where tiebreak is needed
-        data["adjusted_bin_label"] = data["bin_label"].where(~data["needs_tiebreak"], data["bin_label"].shift(1))
+        condition = ~data["needs_tiebreak"]
+        # Directly update `metabin_label` with the adjusted values
+        data["metabin_label"] = np.where(condition, data["metabin_label"], data["metabin_label"].shift(1).fillna(-1).astype(int))
 
-        # Clean up and finalize
         data = data.drop(["needs_tiebreak"], axis=1)
-        data = data.rename(columns={"adjusted_bin_label": "bin_label"})
+
+        if not isinstance(data, dd.DataFrame):
+            data = dd.from_pandas(data, npartitions=1)
+
+        print("DATA AFTER TIEBREAK")
+        print(data)
 
         return data
 
     @staticmethod
-    def calculate_bin_statistics(data_binned: dd.DataFrame) -> dd.DataFrame:
-        # Calculate average genomic distance and contact probability for each bin
-        bin_stats = data_binned.groupby("bin_label").agg({
+    def calculate_metabin_stats(data_binned: dd.DataFrame) -> dd.DataFrame:
+        # Ensure changes are applied correctly by assigning the result back
+        # data_binned = data_binned.drop(["bin_label"], axis=1, errors="ignore")
+
+        bin_stats = data_binned.groupby("metabin_label").agg({
             "genomic_distance": "mean",
-            "interaction_count": ["mean", "sum"]
-        }).compute()
-        bin_stats.columns = ["average_distance", "average_contact_probability", "total_contacts"]
+            "interaction_count": "sum"
+        }).reset_index()
+
+        bin_stats = bin_stats.rename(columns={
+            "genomic_distance": "average_distance",
+            "interaction_count": "total_contacts"
+        })
+
+        # calculate average contact probability per metabin
+        bin_stats["average_contact_probability"] = bin_stats["total_contacts"] / bin_stats["total_contacts"].sum()
+
         return bin_stats
 
     def bin_data(self, data: dd.DataFrame) -> dd.DataFrame:
         sorted_data = self.sort_data_by_distance(data)
         total_contacts = self.calculate_total_contacts(data)
-        binned_data = self.assign_to_bins(sorted_data, total_contacts, self.config.number_of_bins)
-        bin_stats = self.calculate_bin_statistics(binned_data)
-        return bin_stats
+        binned_data = self.assign_to_bins(sorted_data, total_contacts, self.config.statistical_settings.metabin_occupancy)
+        bin_stats = self.calculate_metabin_stats(binned_data)
+
+        # Merge bin statistics back into the original DataFrame
+        if not isinstance(binned_data, dd.DataFrame):
+            print("Converting data to dask dataframe")
+            binned_data = dd.from_pandas(data, npartitions=1)
+        if not isinstance(bin_stats, dd.DataFrame):
+            print("Converting bin_stats to dask dataframe")
+            bin_stats = dd.from_pandas(bin_stats, npartitions=1)
+
+        # Merge binned data (interaction dataframe) with bin statistics dataframe (metabins dataframe)
+        merged_data = dd.merge(binned_data, bin_stats, on="metabin_label", how="left")
+
+        return merged_data
 
 class FrequencyAggregator:
 
@@ -141,10 +171,11 @@ class FrequencyAggregator:
     # Aggregate frequencies of genomic distances
     @staticmethod
     def aggregate_frequencies(data: dd.DataFrame) -> dd.DataFrame:
-        aggregated_data = data.groupby("genomic_distance").agg({
+        print(data)
+        aggregated_data = data.groupby("average_distance").agg({
             "interaction_count": ["sum", "mean", "std"]
         }).reset_index()
-        aggregated_data.columns = ["genomic_distance", "interaction_sum", "interaction_mean", "interaction_std"]
+        aggregated_data.columns = ["average_distance", "interaction_sum", "interaction_mean", "interaction_std"]
         return aggregated_data
 
 
@@ -155,6 +186,8 @@ class DistanceFilter:
         self.data = data
         self.resolution = resolution
 
+    # TODO: We can't pass resolution from config, and this class just gets passed a dataframe. So, pass the metadata.resolution as well?
+
     def filter_distances(self) -> dd.DataFrame:
         if self.resolution in self.config.pipeline_settings.interaction_distance_filters and self.config.pipeline_settings.use_interaction_distance_filters:
             lower_bound = self.config.pipeline_settings.interaction_distance_filters[self.resolution]["lower"]
@@ -163,13 +196,3 @@ class DistanceFilter:
 
         return self.data
 
-# TODO: cleaner implementation of filtering class:
-class FilterInteractionDistances:
-
-    def __init__(self, config: Config):
-        self.config = config
-        self.min_distance = self.config.pipeline_settings.min_interaction_range
-        self.max_distance = self.config.pipeline_settings.max_interaction_range
-
-    def filter_data(self, data: dd.DataFrame) -> dd.DataFrame:
-        return data[(data["genomic_distance"] >= self.min_distance) & (data["genomic_distance"] <= self.max_distance)]

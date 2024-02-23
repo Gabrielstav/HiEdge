@@ -6,6 +6,7 @@ from src.reference_handling.reference_parser import ReferenceFileParser as Refer
 import pandas as pd
 import pybedtools as pbt
 import dask.dataframe as dd
+from typing import Union
 
 # mb use bedpe schema when returning data
 
@@ -26,6 +27,14 @@ class RemoveBlacklistedRegions:
         filtered_partition_df = filtered_partition.to_dataframe(names=["chr_1", "start_1", "end_1", "chr_2", "start_2", "end_2", "interaction_count", "idx_1", "idx_2", "bias_1", "bias_2"])
         return filtered_partition_df
 
-    def filter_blacklist(self, bedpe_ddf: dd.DataFrame, resolution) -> dd.DataFrame:
+    def filter_blacklist(self, bedpe_data: Union[dd.DataFrame, pd.DataFrame], resolution) -> dd.DataFrame:
+        if isinstance(bedpe_data, pd.DataFrame):
+            # Convert pandas DataFrame to Dask DataFrame
+            bedpe_ddf = dd.from_pandas(bedpe_data, npartitions=1)
+        else:
+            bedpe_ddf = bedpe_data
+
         filtered_partitions = bedpe_ddf.map_partitions(self.filter_single_partition, resolution)
+        print(filtered_partitions.compute().head())
+
         return filtered_partitions

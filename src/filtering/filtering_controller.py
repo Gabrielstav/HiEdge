@@ -5,11 +5,12 @@ from src.setup.config_loader import Config
 from src.setup.data_structures import FilteringOutput, Metadata
 from src.filtering.chromosome_filter import FilterChromosomes
 from src.filtering.range_filter import FilterRanges
-from src.filtering.filtering_utils import SplitByInteractionType, FilterInteractionDistances, FilterBias
+from src.filtering.filtering_utils import SplitByInteractionType, FilterBias
 from src.filtering.blacklist_filter import RemoveBlacklistedRegions
 from src.filtering.cytobands_filter import RemoveCytobandRegions
 from src.filtering.filtering_utils import chromosome_key_sort
 from typing import List
+import dask.dataframe as dd
 
 
 class FilteringController:
@@ -47,7 +48,6 @@ class FilteringController:
         # Apply all the filters on the output
         self._apply_chromosome_filtering(output)
         self._apply_range_filtering(output)
-        self._apply_interaction_distance_filtering(output)
         self._apply_blacklist_filtering(output)
         self._apply_cytoband_filtering(output)
         self._apply_bias_filtering(output)
@@ -61,32 +61,25 @@ class FilteringController:
         self.intra_metadata = self._instantiate_metadata("intra")
         self.inter_metadata = self._instantiate_metadata("inter")
 
-    def _apply_chromosome_filtering(self, output):
+    def _apply_chromosome_filtering(self, output: dd.DataFrame):
         if self.config.pipeline_settings.remove_chromosomes or self.config.pipeline_settings.select_chromosomes:
             chromosome_filter = FilterChromosomes(self.config)
             output.data = chromosome_filter.filter_data(output.data, output.metadata.interaction_type)
 
-    def _apply_range_filtering(self, output):
+    def _apply_range_filtering(self, output: dd.DataFrame):
         range_filter = FilterRanges(self.config)
         output.data = range_filter.apply_filters(output.data)
 
-    def _apply_interaction_distance_filtering(self, output):
-        if self.metadata.interaction_type == "intra" and self.config.pipeline_settings.use_interaction_distance_filters:
-            # check resolution of data in metadata and compare to max and min interaction distance keys
-            if self.metadata.resolution in self.config.pipeline_settings.interaction_distance_filters:
-                interaction_distance_filter = FilterInteractionDistances(self.config)
-                output.data = interaction_distance_filter.filter_data(output.data)
-
-    def _apply_blacklist_filtering(self, output):
+    def _apply_blacklist_filtering(self, output: dd.DataFrame):
         if self.config.pipeline_settings.filter_blacklist:
             blacklist_filter = RemoveBlacklistedRegions(self.config)
             output.data = blacklist_filter.filter_blacklist(output.data, output.metadata.resolution)
 
-    def _apply_cytoband_filtering(self, output):
+    def _apply_cytoband_filtering(self, output: dd.DataFrame):
         if self.config.pipeline_settings.filter_cytobands:
             output.data = self.cytoband_filter.filter_cytobands(output.data, output.metadata.resolution)
 
-    def _apply_bias_filtering(self, output):
+    def _apply_bias_filtering(self, output: dd.DataFrame):
         if self.config.statistical_settings.use_hicpro_bias:
             bias_filter = FilterBias()
             output.data = bias_filter.filter_bias(output.data)
