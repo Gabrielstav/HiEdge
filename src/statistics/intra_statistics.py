@@ -144,22 +144,26 @@ class EqualOccupancyBinner:
 
         return bin_stats
 
+    @staticmethod
+    def merge_bin_stats_with_interaction_dataframe(bin_stats: dd.DataFrame, interaction_dataframe: dd.DataFrame) -> dd.DataFrame:
+
+        # Merge bin statistics back into the original DataFrame
+        if not isinstance(bin_stats, dd.DataFrame):
+            print("Converting bin_stats stats data to dask dataframe")
+            bin_stats = dd.from_pandas(bin_stats, npartitions=1)
+        if not isinstance(interaction_dataframe, dd.DataFrame):
+            print("Converting interaction dataframe to dask dataframe")
+            interaction_dataframe = dd.from_pandas(interaction_dataframe, npartitions=1)
+
+        return dd.merge(interaction_dataframe, bin_stats, on="metabin_label", how="left")
+
+
     def bin_data(self, data: dd.DataFrame) -> dd.DataFrame:
         sorted_data = self.sort_data_by_distance(data)
         total_contacts = self.calculate_total_contacts(data)
         binned_data = self.assign_to_bins(sorted_data, total_contacts, self.config.statistical_settings.metabin_occupancy)
         bin_stats = self.calculate_metabin_stats(binned_data)
-
-        # Merge bin statistics back into the original DataFrame
-        if not isinstance(binned_data, dd.DataFrame):
-            print("Converting data to dask dataframe")
-            binned_data = dd.from_pandas(data, npartitions=1)
-        if not isinstance(bin_stats, dd.DataFrame):
-            print("Converting bin_stats to dask dataframe")
-            bin_stats = dd.from_pandas(bin_stats, npartitions=1)
-
-        # Merge binned data (interaction dataframe) with bin statistics dataframe (metabins dataframe)
-        merged_data = dd.merge(binned_data, bin_stats, on="metabin_label", how="left")
+        merged_data = self.merge_bin_stats_with_interaction_dataframe(bin_stats, binned_data)
 
         return merged_data
 
@@ -190,9 +194,11 @@ class DistanceFilter:
 
     def filter_distances(self) -> dd.DataFrame:
         if self.resolution in self.config.pipeline_settings.interaction_distance_filters and self.config.pipeline_settings.use_interaction_distance_filters:
-            lower_bound = self.config.pipeline_settings.interaction_distance_filters[self.resolution]["lower"]
-            upper_bound = self.config.pipeline_settings.interaction_distance_filters[self.resolution]["upper"]
+            distance_filter_config = self.config.pipeline_settings.interaction_distance_filters[self.resolution]
+            lower_bound = distance_filter_config.min_distance
+            upper_bound = distance_filter_config.max_distance
+            print(lower_bound, upper_bound)
+            print(f"Data in distance filtering method: {self.data.columns}")
             self.data = self.data[(self.data["genomic_distance"] >= lower_bound) & (self.data["genomic_distance"] <= upper_bound)]
-
         return self.data
 

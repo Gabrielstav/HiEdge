@@ -66,6 +66,9 @@ pipeline_settings:
     1000000:
       min_distance: 2000000  # Minimum distance for interactions to be considered
       max_distance: 10000000  # Maximum distance for interactions to be considered
+    500000:
+      min_distance: 1000000  # Minimum distance for interactions to be considered
+      max_distance: 5000000  # Maximum distance for interactions to be considered
 
   # Output settings
   output_format: "csv"  # Output format for HiEdge results (csv, hdf5, parquet, text)

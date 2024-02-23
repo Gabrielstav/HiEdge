@@ -54,5 +54,10 @@ class InteractionCreator:
         merged_ddf = merged_ddf.merge(bed_ddf, left_on="id2", right_on="idx", how="left").rename(columns={"chr": "chr_2", "start": "start_2", "end": "end_2", "idx": "idx_2"})
         return merged_ddf[["chr_1", "start_1", "end_1", "chr_2", "start_2", "end_2", "interaction_count", "idx_1", "idx_2"]]
 
+        # TODO: Create full meta for interaction dataframe and set dtypes, uninitialized columns can just contain nothing until they are filled in:
+        #   chr_1 start_1  end_1   chr_2 start_2  end_2 interaction_count  idx_1  idx_2   bias_1   bias_2 midpoint_1
+        #   midpoint_2 genomic_distance cumulative_count metabin_label average_distance total_contacts average_contact_probabilit
+
+
 
 

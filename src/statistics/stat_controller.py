@@ -43,8 +43,12 @@ class StatController:
         distances = DistanceCalculator(self.config).calculate_distances(midpoints)
         binned_data = EqualOccupancyBinner(self.config, intra_data).bin_data(distances)
         aggregated_data = FrequencyAggregator(self.config).aggregate_frequencies(binned_data)
-        filtered_data = DistanceFilter(self.config, aggregated_data, resolution=self.metadata.resolution).filter_distances()  # calling filterer distances
-        return filtered_data
+        if self.config.pipeline_settings.interaction_distance_filters and self.metadata.resolution in self.config.pipeline_settings.interaction_distance_filters:
+            filtered_data = DistanceFilter(self.config, binned_data, resolution=self.metadata.resolution).filter_distances()  # calling filterer distances
+            return_data = filtered_data
+        else:
+            return_data = aggregated_data
+        return return_data
 
     def _prepare_inter_data(self, inter_data):
         inter_stats = InterStatisticsCalculator(inter_data, self.config).compute_inter_stats()
