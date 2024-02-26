@@ -50,9 +50,9 @@ class OutputConfigurator:
             df.to_parquet(file_path)
         elif output_format == "hdf5":
             # HDF5 writing needs special handling for Dask
-            df.compute().to_hdf(file_path, key='data', mode='w')
+            df.compute().to_hdf(file_path, key="data", mode="w")
         elif output_format == "txt":
-            df.to_csv(file_path, single_file=True, sep='\t', header=False, index=False)
+            df.to_csv(file_path, single_file=True, sep="\t", header=False, index=False)
         else:
             raise ValueError(f"Unsupported output format: {output_format}")
 
