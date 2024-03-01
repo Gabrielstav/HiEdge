@@ -19,7 +19,7 @@ class StatController:
 
     def run(self):
         if self.metadata.interaction_type == "intra":
-            print(f"Running intra stats for {str(self.metadata.experiment) + str(self.metadata.resolution)}")
+            print(f"Running intra stats for {str(self.metadata.experiment) +  str(self.metadata.resolution)}")
             return self._process_intra_stats()
         elif self.metadata.interaction_type == "inter":
             return self._process_inter_stats()

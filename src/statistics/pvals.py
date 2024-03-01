@@ -6,6 +6,8 @@ from scipy.stats import nchypergeom_wallenius as nchg
 from scipy.stats import binom
 import dask.dataframe as dd
 from scipy.interpolate import UnivariateSpline
+import pandas as pd
+pd.options.mode.chained_assignment = None
 
 # TODO:
 #  later: implement nchg test for intra p-vals
@@ -17,34 +19,52 @@ class IntraPValueCalculator:
         self.spline = spline
         self.metadata = metadata
         self.config = config
+        self.total_interactions_per_chromosome = self._calculate_total_interactions_per_chromosome()
 
     def run(self):
-        print(f"Columns in data for p-val: {self.data.columns}")
+        if not isinstance(self.data, dd.DataFrame):
+            print("Converting to dask dataframe")
+        if isinstance(self.data, dd.DataFrame):
+            print(f"Data already in dask dataframe: {type(self.data)}")
+            self.data = dd.from_pandas(self.data, npartitions=1)
         self._calculate_expected_frequency()
         self._calculate_p_values()
+        # print head of data
+        print(self.data.head(50))
         return self.data
+
+    def _calculate_p_values(self):
+        # Ensure data is prepared with total interactions
+        self._prepare_data_with_total_interactions()
+
+        # Adjust expected frequency with bias terms if configured
+        adjusted_expected_frequency = self.data["expected_frequency"]
+        if self.config.statistical_settings.use_hicpro_bias:
+            adjusted_expected_frequency *= self.data["bias_1"] * self.data["bias_2"]
+
+        # Vectorized p-value calculation
+        self.data["p_value"] = binom.sf(
+            self.data["interaction_count"] - 1,
+            self.data["total_interactions"],
+            adjusted_expected_frequency
+        )
+
+    def _prepare_data_with_total_interactions(self):
+        # Convert total interactions per chromosome to a DataFrame
+        total_interactions_df = pd.DataFrame.from_dict(self.total_interactions_per_chromosome, orient="index", columns=["total_interactions"])
+        total_interactions_df["chr_1"] = total_interactions_df.index
+
+        # Merge this DataFrame with the main data
+        self.data = dd.merge(self.data, total_interactions_df, on="chr_1", how="left")
 
     def _calculate_expected_frequency(self):
         # Use the spline to calculate expected frequency based on genomic distance
         self.data["expected_frequency"] = self.data["genomic_distance"].map(lambda x: self.spline(x))
 
-    def _calculate_p_values(self):
-        # Adjust expected frequency with bias terms if configured
-        if self.config.statistical_settings.use_hicpro_bias:
-            self.data["adjusted_expected_frequency"] = self.data["expected_frequency"] * self.data["bias_1"] * self.data["bias_2"]
-        else:
-            self.data["adjusted_expected_frequency"] = self.data["expected_frequency"]
+    def _calculate_total_interactions_per_chromosome(self):
+        total_interactions_per_chromosome = self.data.groupby("chr_1")["interaction_count"].sum()
+        return total_interactions_per_chromosome.to_dict()
 
-        total_interactions = self._recalculate_total_interactions()
-
-        # Calculate p-values using a binomial test
-        self.data["p_value"] = self.data.apply(lambda row: binom.sf(row["interaction_count"] - 1, total_interactions, row["adjusted_expected_frequency"]), axis=1)
-
-    def _recalculate_total_interactions(self) -> int:
-        # recalculate the total interactions present in the data (after filtering)
-        print(self.metadata.interaction_count_per_chromosome_intra)
-        total_possible_interactions = sum(self.metadata.interaction_count_per_chromosome_intra[chrom] for chrom in self.metadata.chromosomes_present)
-        return total_possible_interactions
 
 class InterPValueCalculator:
 

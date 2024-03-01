@@ -24,8 +24,13 @@ class DistanceCalculator:
 
     @staticmethod
     def calculate_distances(data: dd.DataFrame) -> dd.DataFrame:
+        # Calculate the genomic distance
         data["genomic_distance"] = abs(data["midpoint_1"] - data["midpoint_2"]).astype("int32")
-        return data
+
+        # Filter out data with genomic distance == 0 (self-interactions)
+        filtered_data = data[data["genomic_distance"] != 0]
+
+        return filtered_data
 
 
 class DistanceFilter:
@@ -40,8 +45,6 @@ class DistanceFilter:
             distance_filter_config = self.config.pipeline_settings.interaction_distance_filters[self.resolution]
             lower_bound = distance_filter_config.min_distance
             upper_bound = distance_filter_config.max_distance
-            print(lower_bound, upper_bound)
-            print(f"Data in distance filtering method: {self.data.columns}")
             self.data = self.data[(self.data["genomic_distance"] >= lower_bound) & (self.data["genomic_distance"] <= upper_bound)]
         return self.data
 

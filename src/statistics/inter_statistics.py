@@ -12,9 +12,7 @@ class DataPreparationController:
         self.input_data = input_data
 
     def run(self):
-        # Calculate inter stats
         inter_stats = InterStatisticsCalculator(self.input_data, self.config).compute_inter_stats()
-
         return inter_stats
 
 class InterStatisticsCalculator:
@@ -26,9 +24,6 @@ class InterStatisticsCalculator:
     def compute_inter_stats(self) -> int:
         # Filter for interchromosomal interactions
         inter_data = self.data[self.data["chr_1"] != self.data["chr_2"]]
-
-        if self.data[self.data["chr_1"] == self.data["chr_2"]] in inter_data:
-            raise ValueError("Inter dataset contains intrachromosomal interactions!!!")  # Just sanity check before adding validation
 
         # Count all interactions and compute interaction probability, add as column in data (or as metadata?)
         interdata_count = len(inter_data.index)
