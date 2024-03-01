@@ -4,61 +4,47 @@
 from src.setup.config_loader import Config
 from scipy.stats import nchypergeom_wallenius as nchg
 from scipy.stats import binom
-
+import dask.dataframe as dd
+from scipy.interpolate import UnivariateSpline
 
 # TODO:
 #  later: implement nchg test for intra p-vals
 
 
 class IntraPValueCalculator:
-
-    def __init__(self, data, spline, metadata, total_interactions, config: Config):
+    def __init__(self, data: dd.DataFrame, spline: UnivariateSpline, metadata, config: Config):
         self.data = data
-        self.metadata = metadata
         self.spline = spline
-        self.total_interactions = total_interactions
+        self.metadata = metadata
         self.config = config
 
     def run(self):
-        if self.config.statistical_settings.normalize_expected_frequency:
-            self._recalculate_total_possible_interactions()
+        print(f"Columns in data for p-val: {self.data.columns}")
         self._calculate_expected_frequency()
         self._calculate_p_values()
-        return self.data[["genomic_distance", "interaction_count", "expected_frequency", "p_value"]]
+        return self.data
 
     def _calculate_expected_frequency(self):
-        # Calculate expected frequency using the spline
-        self.data["expected_frequency"] = self.data["genomic_distance"].map_partitions(
-            lambda x: self.spline(x), meta=("x", "float64"))
-
-        if self.config.statistical_settings.normalize_expected_frequency:
-            self.data["expected_frequency"] /= self.total_interactions
+        # Use the spline to calculate expected frequency based on genomic distance
+        self.data["expected_frequency"] = self.data["genomic_distance"].map(lambda x: self.spline(x))
 
     def _calculate_p_values(self):
-        # Check if bias should be used
+        # Adjust expected frequency with bias terms if configured
         if self.config.statistical_settings.use_hicpro_bias:
-            bias_term = self.data["bias_1"] * self.data["bias_2"]
+            self.data["adjusted_expected_frequency"] = self.data["expected_frequency"] * self.data["bias_1"] * self.data["bias_2"]
         else:
-            bias_term = 1
+            self.data["adjusted_expected_frequency"] = self.data["expected_frequency"]
+
+        total_interactions = self._recalculate_total_interactions()
 
         # Calculate p-values using a binomial test
-        self.data["p_value"] = self.data.map_partitions(
-            lambda df: binom.sf(
-                df["interaction_count"] - 1,
-                self.total_interactions,
-                df["expected_frequency"] * bias_term
-            ),
-            meta=("x", "float64")
-        )
+        self.data["p_value"] = self.data.apply(lambda row: binom.sf(row["interaction_count"] - 1, total_interactions, row["adjusted_expected_frequency"]), axis=1)
 
-    def _recalculate_total_possible_interactions(self):
-        # Use self.metadata.chromosomes_present to recalculate total_possible_interactions after filtering chromosomes
-        total_possible_interactions = sum(
-            self.metadata.interaction_count_per_chromosome[chrom]
-            for chrom in self.metadata.chromosomes_present
-        )
-        self.metadata.max_possible_interaction_count_intra = total_possible_interactions
-
+    def _recalculate_total_interactions(self) -> int:
+        # recalculate the total interactions present in the data (after filtering)
+        print(self.metadata.interaction_count_per_chromosome_intra)
+        total_possible_interactions = sum(self.metadata.interaction_count_per_chromosome_intra[chrom] for chrom in self.metadata.chromosomes_present)
+        return total_possible_interactions
 
 class InterPValueCalculator:
 
@@ -70,8 +56,6 @@ class InterPValueCalculator:
         self.total_possible_interactions = total_possible_interactions
 
     def run(self):
-        if self.config.statistical_settings.normalize_expected_frequency:
-            self._recalculate_total_possible_interactions()
         self._calculate_prior_probability()
         self._calculate_p_values()
         return self.data[["interaction_count", "prior_p", "p_value"]]
@@ -81,9 +65,6 @@ class InterPValueCalculator:
             self.data["prior_p"] = self.interChrProb * self.data["bias_1"] * self.data["bias_2"]
         else:
             self.data["prior_p"] = self.interChrProb
-
-        if self.config.statistical_settings.normalize_expected_frequency:
-            self.data["prior_p"] /= self.total_possible_interactions
 
     def _calculate_p_values(self):
         # Binomial distribution survival function for p-value calculation
@@ -95,11 +76,3 @@ class InterPValueCalculator:
             ),
             meta=("p_value", "float64")
         )
-
-    def _recalculate_total_possible_interactions(self):
-        # Use self.metadata.chromosomes_present to recalculate total_possible_interactions after filtering chromosomes
-        total_possible_interactions = sum(
-            self.metadata.interaction_count_per_chromosome[chrom]
-            for chrom in self.metadata.chromosomes_present
-        )
-        self.metadata.max_possible_interaction_count_inter = total_possible_interactions

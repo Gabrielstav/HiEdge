@@ -2,7 +2,7 @@
 
 # Import modules
 from src.setup.data_structures import StatisticalOutput
-from src.statistics.intra_statistics import DistanceCalculator, EqualOccupancyBinner, FrequencyAggregator, MidpointCalculator, DistanceFilter
+from src.statistics.intra_statistics import DistanceCalculator, EqualOccupancyBinner, MidpointCalculator, DistanceFilter
 from src.statistics.inter_statistics import InterStatisticsCalculator
 from src.statistics.spline_fit import SplineFitter, SplineAnalysis
 from src.statistics.pvals import IntraPValueCalculator, InterPValueCalculator
@@ -19,6 +19,7 @@ class StatController:
 
     def run(self):
         if self.metadata.interaction_type == "intra":
+            print(f"Running intra stats for {str(self.metadata.experiment) + str(self.metadata.resolution)}")
             return self._process_intra_stats()
         elif self.metadata.interaction_type == "inter":
             return self._process_inter_stats()
@@ -65,11 +66,12 @@ class StatController:
 
     def _spline_stats(self, spline, spline_input):
         spline_analysis = SplineAnalysis(self.config, spline, spline_input)
+        # TODO: Log this and use for plotting later
         spline_stats = spline_analysis.calculate_mse(), spline_analysis.calculate_residuals(), spline_analysis.calculate_r_squared()
         return spline_stats
 
-    def _calculate_intra_pvals(self, spline, spline_input):
-        pval_calculator = IntraPValueCalculator(spline_input, spline, self.metadata, self.metadata.max_possible_interaction_count_intra, self.config)
+    def _calculate_intra_pvals(self, spline, filtered_data):
+        pval_calculator = IntraPValueCalculator(filtered_data, spline, self.metadata, self.config)
         pvals = pval_calculator.run()
         return pvals
 

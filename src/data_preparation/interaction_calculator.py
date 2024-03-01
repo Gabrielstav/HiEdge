@@ -8,6 +8,8 @@ class InteractionCalculator:
     def __init__(self, data: dd.DataFrame):
         self.data = data  # interaction dask dataframe
 
+    # TODO: extract (or just remove) intra_counts_per_chromosome since this is biased towards unfiltered data and wont be used
+
     def calculate_intra_interactions(self):
         chrom_counts = self.data["chr_1"].value_counts().compute()
         total_possible_intra = 0

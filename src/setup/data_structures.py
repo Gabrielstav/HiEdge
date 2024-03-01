@@ -14,6 +14,7 @@ class Metadata:
     bias_file_path: Optional[Path] = None
     max_possible_interaction_count_intra: Optional[int] = None
     max_possible_interaction_count_inter: Optional[int] = None
+    # TODO: Remove interaction_count_per_chromosome_intra if removing in interaction_calculator and bias_merger
     interaction_count_per_chromosome_intra: Optional[dict] = None
     chromosomes_present: Optional[list[str]] = None
 

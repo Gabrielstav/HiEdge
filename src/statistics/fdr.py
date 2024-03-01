@@ -65,3 +65,17 @@ class FDRCalculator:
         return fdr_results[fdr_results["adjusted_p"] <= fdr_threshold]
 
 
+class RecaulculatePossibleInteractions:
+
+    def __init__(self, metadata, config):
+        self.metadata = metadata
+        self.config = config
+
+    def recalculate_total_possible_interactions(self):
+        # Use self.metadata.chromosomes_present to recalculate total_possible_interactions after filtering chromosomes
+        total_possible_interactions = sum(
+            self.metadata.interaction_count_per_chromosome[chrom]
+            for chrom in self.metadata.chromosomes_present
+        )
+        self.metadata.max_possible_interaction_count_intra = total_possible_interactions
+        return self.metadata.max_possible_interaction_count_intra
