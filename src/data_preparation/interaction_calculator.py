@@ -1,38 +1,46 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
-from src.setup.config_loader import Config
 import dask.dataframe as dd
 
 class InteractionCalculator:
     def __init__(self, data: dd.DataFrame):
-        self.data = data  # interaction dask dataframe
+        self.data: dd.DataFrame = data
 
-    # TODO: extract (or just remove) intra_counts_per_chromosome since this is biased towards unfiltered data and wont be used
+        if not isinstance(self.data, dd.DataFrame):
+            # convert to dask dataframe
+            self.data = dd.from_pandas(self.data, npartitions=1)
 
     def calculate_intra_interactions(self):
-        chrom_counts = self.data["chr_1"].value_counts().compute()
-        total_possible_intra = 0
-        intra_counts_per_chromosome = {}
+        # Calculate unique bins per chromosome
+        unique_bins_per_chr = self.data.groupby("chr_1").apply(lambda df: df[["start_1"]].drop_duplicates().shape[0], meta="int").compute()
 
-        for chrom, count in chrom_counts.items():
-            intra_counts = (count * (count + 1)) // 2
-            total_possible_intra += intra_counts
-            intra_counts_per_chromosome[chrom] = intra_counts
+        # Calculate possible intra interactions per chromosome
+        intra_per_chromosome = unique_bins_per_chr * (unique_bins_per_chr - 1) // 2
 
-        return total_possible_intra, intra_counts_per_chromosome
+        # Sum up to get total possible intra interactions
+        total_possible_intra = intra_per_chromosome.sum()
+
+        # Create DataFrame for per chromosome interaction counts
+        intra_per_chromosome_df = intra_per_chromosome.reset_index(name="possible_intra")
+
+        print(f"Total possible intra interactions: {total_possible_intra}"
+              f"\nIntra interactions per chromosome:\n{intra_per_chromosome_df}")
+
+        return total_possible_intra, intra_per_chromosome_df
 
     def calculate_inter_interactions(self):
-        chrom_counts = {chrom: self.data[self.data["chr_1"] == chrom]["chr_1"].count().compute() for chrom in self.data["chr_1"].unique()}
-        total_bins = sum(chrom_counts.values())
-        total_possible_inter = 0
+        # Count unique bins across the entire dataset
+        total_unique_bins = self.data[["chr_1", "start_1"]].drop_duplicates().shape[0].compute()
 
-        for chrom, n in chrom_counts.items():
-            # Subtract current chromosome's bin count from total to calculate interchromosomal pairs
-            inter_count_for_chrom = n * (total_bins - n)
-            total_possible_inter += inter_count_for_chrom
-
-        # Divide by 2 to avoid double counting
-        total_possible_inter /= 2
+        # Calculate total possible inter interactions
+        total_possible_inter = total_unique_bins * (total_unique_bins + 1) // 2   # - self.calculate_intra_interactions()[0] no need for this if calling after splitting in filtering_controller
 
         return total_possible_inter
+
+    def calculate_per_chromosome_interactions(self):
+        # This method is relevant for intra-chromosomal interactions only
+        # Similar to calculate_intra_interactions but keeps the DataFrame for per chromosome calculations
+        _, intra_per_chromosome_df = self.calculate_intra_interactions()
+
+        return intra_per_chromosome_df

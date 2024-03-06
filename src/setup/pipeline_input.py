@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import List, Set, Tuple, Iterable, Optional
 from src.setup.config_loader import Config
-from src.setup.data_structures import GroupedFiles, Metadata
+from src.setup.containers import GroupedFiles, Metadata
 
 class HicProInputFilePreparer:
 

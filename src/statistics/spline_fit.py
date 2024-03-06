@@ -1,60 +1,81 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
-from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import UnivariateSpline, interp1d
 from sklearn.isotonic import IsotonicRegression
 import dask.dataframe as dd
 from dask import compute
 import numpy as np
 from collections import namedtuple
+import matplotlib.pyplot as plt
 
 SortedData = namedtuple("SortedData", ["x", "y"])
 
 class SplineFitter:
-
     def __init__(self, binned_data: dd.DataFrame, config):
-        sorted_data = self._get_sorted_data(binned_data)
+        self.adjusted_spline = None
+        self.adjusted_y = None
         self.binned_data = binned_data
         self.config = config
-        self.x = sorted_data.x
-        self.y = sorted_data.y
+        self.x, self.y = self._get_sorted_data(binned_data)
         self.spline_error = min(self.y) ** 2
 
-    def run(self) -> UnivariateSpline:
+    def run(self):
+
+        # TODO: DEBUGGING
+        plt.figure(figsize=(12, 6))
+
+        plt.subplot(1, 2, 1)
+        plt.hist(self.x, bins=50)
+        plt.title('Distribution of Genomic Distances (x)')
+        plt.xlabel('Genomic Distance')
+        plt.ylabel('Frequency')
+
+        plt.subplot(1, 2, 2)
+        plt.hist(self.y, bins=50)
+        plt.title('Distribution of Probabilities (y)')
+        plt.xlabel('Probability')
+        plt.ylabel('Frequency')
+
+        plt.tight_layout()
+        plt.show()
+
+        print(f'Min X: {min(self.x)}, Max X: {max(self.x)}')
+        print(f'Min Y: {min(self.y)}, Max Y: {max(self.y)}')
+
+        plt.scatter(self.x, self.y, alpha=0.5)
+        plt.title('Genomic Distance vs Probability')
+        plt.xlabel('Genomic Distance')
+        plt.ylabel('Probability')
+        plt.show()
+
         initial_spline = self._fit_initial_spline()
-        adjusted_y = self._apply_isotonic_regression(initial_spline)
-        final_spline = self._fit_final_spline(adjusted_y)
-        return final_spline
+        self.adjusted_y = self._apply_isotonic_regression(initial_spline)
+        # Create an interpolation function based on adjusted y-values
+        self.adjusted_spline = interp1d(self.x, self.adjusted_y, kind="linear", fill_value="extrapolate")
 
-    def _fit_initial_spline(self) -> UnivariateSpline:
-        # check x and y for null values
-        if np.isnan(self.x).any() or np.isnan(self.y).any():
-            raise ValueError("X or Y contains null values")
+    def get_adjusted_spline(self):
+        # Ensure run has been called
+        if hasattr(self, "adjusted_spline"):
+            return self.adjusted_spline
+        else:
+            raise ValueError("Spline has not been fitted yet.")
 
-        print(f"Y values before spline fit: {self.y}")
-        print(f"X values before spline fit: {self.x}")
+    def _fit_initial_spline(self):
         return UnivariateSpline(self.x, self.y, s=self.spline_error)
 
-    def _apply_isotonic_regression(self, initial_spline) -> UnivariateSpline:
-        # print y vals from initial spline fit
-        print(f"Initial spline y: {initial_spline(self.y)}")
+    def _apply_isotonic_regression(self, initial_spline) -> np.ndarray:
         y_predictions = initial_spline(self.x)
         ir = IsotonicRegression(increasing=False)
-        print(f"Y predictions: {y_predictions}")
         adjusted_y = ir.fit_transform(self.x, y_predictions)
         return adjusted_y
 
-    def _fit_final_spline(self, adjusted_y) -> UnivariateSpline:
-        # Fit a new spline to the isotonic regression adjusted y-values
-        return UnivariateSpline(self.x, adjusted_y, s=self.spline_error)
-
     @staticmethod
     def _get_sorted_data(binned_data: dd.DataFrame) -> SortedData:
-        """Sort data and return a namedtuple containing x (distances) and y (probabilities)."""
         sorted_data = binned_data.sort_values("average_distance", ascending=True)
-        y = compute(sorted_data["average_distance"])[0]
-        x = compute(sorted_data["average_contact_probability"])[0]
-        return SortedData(x=x, y=y)  # Return as SortedData namedtuple
+        x = compute(sorted_data["average_distance"])[0]
+        y = compute(sorted_data["average_contact_probability"])[0]
+        return SortedData(x=x, y=y)
 
 class SplineAnalysis:
 

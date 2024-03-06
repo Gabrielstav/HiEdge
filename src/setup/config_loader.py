@@ -104,7 +104,7 @@ class StatisticalSettings(BaseModel):
     use_hicpro_bias: bool
     bias_lower_bound: float
     bias_upper_bound: float
-    normalize_expected_frequency: bool
+    use_filtered_data_for_average_contact_probability: bool
 
 
 class DaskSettings(BaseModel):

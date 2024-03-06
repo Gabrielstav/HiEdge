@@ -2,7 +2,7 @@
 
 # Import modules
 from src.setup.config_loader import Config
-from src.setup.data_structures import GroupedFiles
+from src.setup.containers import GroupedFiles
 from src.data_preparation.validation import validate_interaction_data, validate_matrix_data, validate_bed_data
 import dask.dataframe as dd
 

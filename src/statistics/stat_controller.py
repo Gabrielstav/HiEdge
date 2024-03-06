@@ -1,7 +1,7 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
-from src.setup.data_structures import StatisticalOutput
+from src.setup.containers import StatisticalOutput
 from src.statistics.intra_statistics import DistanceCalculator, EqualOccupancyBinner, MidpointCalculator, DistanceFilter
 from src.statistics.inter_statistics import InterStatisticsCalculator
 from src.statistics.spline_fit import SplineFitter, SplineAnalysis
@@ -19,7 +19,7 @@ class StatController:
 
     def run(self):
         if self.metadata.interaction_type == "intra":
-            print(f"Running intra stats for {str(self.metadata.experiment) +  str(self.metadata.resolution)}")
+            print(f"Running intra stats for experiment: {str(self.metadata.experiment)} with resolution: {str(self.metadata.resolution)}")
             return self._process_intra_stats()
         elif self.metadata.interaction_type == "inter":
             return self._process_inter_stats()
@@ -56,7 +56,9 @@ class StatController:
         return inter_stats
 
     def _create_metabinned_data(self, data):
-        metabinned_data = EqualOccupancyBinner(self.config, data).bin_data(data)
+        total_interactions = self.metadata.max_possible_interaction_count_intra
+        intra_counts_per_chromosome = self.metadata.interaction_count_per_chromosome_intra
+        metabinned_data = EqualOccupancyBinner(self.config, data).bin_data(data, total_interactions, intra_counts_per_chromosome)
         return metabinned_data
 
     def _fit_spline(self, metabinned_data):

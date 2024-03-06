@@ -4,6 +4,7 @@
 from src.setup.config_loader import Config
 import dask.dataframe as dd
 import numpy as np
+import pandas as pd
 
 class MidpointCalculator:
 
@@ -55,11 +56,11 @@ class EqualOccupancyBinner:
         self.config = config
         self.input_data = input_data
 
-    def bin_data(self, data: dd.DataFrame) -> dd.DataFrame:
+    def bin_data(self, data: dd.DataFrame, total_interactions: int, intra_counts_per_chromosome: dict) -> dd.DataFrame:
         sorted_data = self._sort_data_by_distance(data)
         total_contacts = self._calculate_total_contacts(data)
         binned_data = self._assign_to_bins(sorted_data, total_contacts, self.config.statistical_settings.metabin_occupancy)
-        bin_stats = self._calculate_metabin_stats(binned_data)
+        bin_stats = self._calculate_metabin_stats(binned_data, total_interactions, intra_counts_per_chromosome)
 
         print(f"Bin stats: {bin_stats}")
         print(f"Data columns: {data.columns}")
@@ -106,22 +107,26 @@ class EqualOccupancyBinner:
         return data
 
     @staticmethod
-    def _calculate_metabin_stats(data_binned: dd.DataFrame) -> dd.DataFrame:
-        # Ensure changes are applied correctly by assigning the result back
-        # data_binned = data_binned.drop(["bin_label"], axis=1, errors="ignore")
+    def _calculate_metabin_stats(data_binned: dd.DataFrame, total_interactions: int, intra_counts_per_chromosome: dict) -> dd.DataFrame:
+        # Assuming intra_counts_per_chromosome is a dictionary with chromosome as keys and counts as values
+        # Convert counts per chrom metadata to DataFrame
+        counts_df = pd.DataFrame(list(intra_counts_per_chromosome.items()), columns=["chr_1", "possible_pairs"])
 
+        # Ensure bin_stats is a DataFrame that includes a "chr_1" column for merging
         bin_stats = data_binned.groupby("metabin_label").agg({
             "genomic_distance": "mean",
-            "interaction_count": "sum"
-        }).reset_index()
-
-        bin_stats = bin_stats.rename(columns={
+            "interaction_count": "sum",
+            "chr_1": "first"  # Assuming all entries in a bin belong to the same chromosome, adjust as needed
+        }).reset_index().rename(columns={
             "genomic_distance": "average_distance",
             "interaction_count": "total_contacts"
         })
 
-        # calculate average contact probability per metabin
-        bin_stats["average_contact_probability"] = bin_stats["total_contacts"] / bin_stats["total_contacts"].sum()
+        # Merge to associate each bin with its possible pairs count
+        bin_stats = dd.merge(bin_stats, counts_df, on="chr_1", how="left")
+
+        # Now, calculate average contact probability per metabin
+        bin_stats["average_contact_probability"] = bin_stats["total_contacts"] / total_interactions
 
         return bin_stats
 

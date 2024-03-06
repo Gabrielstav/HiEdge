@@ -1,23 +1,24 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
+import pandas as pd
 
 # Import modules
 from src.setup.config_loader import Config
-from src.setup.data_structures import FilteringOutput, Metadata
+from src.setup.containers import FilteringOutput, Metadata
 from src.filtering.chromosome_filter import FilterChromosomes
 from src.filtering.range_filter import FilterRanges
 from src.filtering.filtering_utils import SplitByInteractionType, FilterBias
 from src.filtering.blacklist_filter import RemoveBlacklistedRegions
 from src.filtering.cytobands_filter import RemoveCytobandRegions
+from src.data_preparation.interaction_calculator import InteractionCalculator
 from src.filtering.filtering_utils import chromosome_key_sort
 from typing import List
 import dask.dataframe as dd
-
 
 class FilteringController:
 
     def __init__(self, config: Config, interaction_output):
         self.config = config
-        self.data = interaction_output.data
+        self.data: dd.DataFrame = interaction_output.data
         self.metadata = interaction_output.metadata
         self.blacklist_filter = RemoveBlacklistedRegions(config)
         self.cytoband_filter = RemoveCytobandRegions(config)
@@ -45,21 +46,20 @@ class FilteringController:
         return outputs
 
     def _apply_filters(self, output):
-        # Apply all the filters on the output
-        self._apply_chromosome_filtering(output)
-        self._apply_range_filtering(output)
-        self._apply_blacklist_filtering(output)
-        self._apply_cytoband_filtering(output)
-        self._apply_bias_filtering(output)
-        self._update_chromosomes_present_in_metadata(output)
-        self._remove_metadata_for_filtered_chromosomes(output.metadata)
-
-
-    def _split_datasets_by_interaction_type(self):
-        splitter = SplitByInteractionType(self.data)
-        self.intra_df, self.inter_df = splitter.split_datasets_by_interaction_type()
-        self.intra_metadata = self._instantiate_metadata("intra")
-        self.inter_metadata = self._instantiate_metadata("inter")
+        if self.config.statistical_settings.use_filtered_data_for_average_contact_probability:
+            self._apply_chromosome_filtering(output)
+            self._apply_range_filtering(output)
+            self._apply_blacklist_filtering(output)
+            self._apply_cytoband_filtering(output)
+            self._apply_bias_filtering(output)
+            self._calculate_interaction_counts(output)
+        else:
+            self._apply_chromosome_filtering(output)
+            self._calculate_interaction_counts(output)
+            self._apply_range_filtering(output)
+            self._apply_blacklist_filtering(output)
+            self._apply_cytoband_filtering(output)
+            self._apply_bias_filtering(output)
 
     def _apply_chromosome_filtering(self, output: dd.DataFrame):
         if self.config.pipeline_settings.remove_chromosomes or self.config.pipeline_settings.select_chromosomes:
@@ -84,33 +84,36 @@ class FilteringController:
             bias_filter = FilterBias()
             output.data = bias_filter.filter_bias(output.data)
 
-    def _instantiate_metadata(self, interaction_type):
-        return Metadata(experiment=self.metadata.experiment,
-                        resolution=self.metadata.resolution,
-                        interaction_type=interaction_type,
-                        bias_file_path=self.metadata.bias_file_path)
-
-    def _remove_metadata_for_filtered_chromosomes(self, intra_metadata):
-        if intra_metadata.interaction_count_per_chromosome_intra and self.config.statistical_settings.normalize_expected_frequency:
-            intra_metadata.interaction_count_per_chromosome_intra = {
-                k: v for k, v in intra_metadata.interaction_count_per_chromosome_intra.items()
-                if k in intra_metadata.chromosomes_present
-            }
-
     @staticmethod
-    def _update_chromosomes_present_in_metadata(output):
+    def _calculate_interaction_counts(output):
+        interaction_calculator = InteractionCalculator(output.data)
+
         if output.metadata.interaction_type == "intra":
-            unique_chromosomes_intra = output.data["chr_1"].unique().compute().tolist()
-            chromosome_key_sort(unique_chromosomes_intra)
-            output.metadata.chromosomes_present = unique_chromosomes_intra
+            total_possible_intra, intra_per_chromosome_df = interaction_calculator.calculate_intra_interactions()
 
-        if output.metadata.interaction_type == "inter":
-            chromosomes_1 = output.data["chr_1"].unique().compute().tolist()
-            chromosomes_2 = output.data["chr_2"].unique().compute().tolist()
-            unique_chromosomes_inter = list(set(chromosomes_1 + chromosomes_2))
-            chromosome_key_sort(unique_chromosomes_inter)
-            output.metadata.chromosomes_present = unique_chromosomes_inter
+            # Convert DataFrame to dictionary with chromosomes as keys and counts as values
+            chromosome_counts_dict = intra_per_chromosome_df.set_index("chr_1")["possible_intra"].to_dict()
 
-    @staticmethod
-    def _instantiate_output(data, metadata):
-        return FilteringOutput(data=data, metadata=metadata)
+            # Sort the chromosomes order and re-create dictionary in sorted order
+            sorted_chromosome_keys = chromosome_key_sort(chromosome_counts_dict.keys())
+            sorted_chromosome_counts_dict = {chrom: chromosome_counts_dict[chrom] for chrom in sorted_chromosome_keys}
+
+            # Update metadata with sorted dictionary and total count
+            output.metadata.max_possible_interaction_count_intra = total_possible_intra
+            output.metadata.interaction_count_per_chromosome_intra = sorted_chromosome_counts_dict
+
+        elif output.metadata.interaction_type == "inter":
+            total_possible_inter = interaction_calculator.calculate_inter_interactions()
+            output.metadata.max_possible_interaction_count_inter = total_possible_inter
+
+    def _instantiate_metadata(self, interaction_type):
+        # Instantiate metadata based on interaction type, including placeholder for interaction counts.
+        return Metadata(
+            experiment=self.metadata.experiment,
+            resolution=self.metadata.resolution,
+            interaction_type=interaction_type,
+            bias_file_path=self.metadata.bias_file_path,
+            max_possible_interaction_count_intra=None,
+            max_possible_interaction_count_inter=None,
+            interaction_count_per_chromosome_intra=None,
+        )
