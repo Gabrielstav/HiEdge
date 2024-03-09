@@ -20,9 +20,67 @@ class SplineFitter:
         self.x, self.y = self._get_sorted_data(binned_data)
         self.spline_error = min(self.y) ** 2
 
-    def run(self):
 
+
+    def run(self):
+        initial_spline = self._fit_initial_spline()
+        self.adjusted_y = self._apply_isotonic_regression(initial_spline)
+        initial_spline.get_knots()
+
+        x_spline = initial_spline.get_knots()
+        y_spline = initial_spline(x_spline)
+        print(f"Initial spline knots: {x_spline}")
+        print(f"Initial spline values: {y_spline}")
+
+        # plot spline
+        # self._plot_spline()
+        # plot initial data
+        # self._plot_initial_data()
+
+        # TODO: Just adjust y-values of spline instead of creating new spline
+        self.adjusted_spline = UnivariateSpline(self.x, self.adjusted_y, s=self.spline_error)
+
+        y_adusted = interp1d(self.x, self.adjusted_y, kind="cubic")
+
+
+
+    def _fit_initial_spline(self):
+        x_interpolated = np.linspace(min(self.x), max(self.x), 1000)
+        y_cubic = interp1d(self.x, self.y, kind="cubic")
+        initial_spline = UnivariateSpline(x_interpolated, y_cubic(x_interpolated), s=self.spline_error)
+        self._plot_spline()
+        # initial_spline = UnivariateSpline(self.x, self.y, s=self.spline_error)
+        return initial_spline
+
+    def _apply_isotonic_regression(self, initial_spline) -> np.ndarray:
+        y_predictions = initial_spline(self.x)
+        ir = IsotonicRegression(increasing=False)
+        adjusted_y = ir.fit_transform(self.x, y_predictions)
+
+        print(f"Initial y: {initial_spline(self.x)}")
+        print(f"Adjusted y: {adjusted_y}")
+
+        return adjusted_y
+
+    @staticmethod
+    def _get_sorted_data(binned_data: dd.DataFrame) -> SortedData:
+        sorted_data = binned_data.sort_values("average_distance", ascending=True)
+        x = compute(sorted_data["average_distance"])[0]
+        y = compute(sorted_data["average_contact_probability"])[0]
+        return SortedData(x=x, y=y)
+
+    def _plot_spline(self):
+        ax.plot(self.x, self.y, label="Original Data", alpha=0.5)
+        pass
+
+    def _plot_initial_data(self):
         # TODO: DEBUGGING
+
+        print(f"Genomic distances: {self.x}")
+        print(f"Probabilities before spline: {self.y}")
+        print(f"Length of x: {len(self.x)}")
+        print(f"Length of y: {len(self.y)}")
+
         plt.figure(figsize=(12, 6))
 
         plt.subplot(1, 2, 1)
@@ -49,33 +107,6 @@ class SplineFitter:
         plt.ylabel('Probability')
         plt.show()
 
-        initial_spline = self._fit_initial_spline()
-        self.adjusted_y = self._apply_isotonic_regression(initial_spline)
-        # Create an interpolation function based on adjusted y-values
-        self.adjusted_spline = interp1d(self.x, self.adjusted_y, kind="linear", fill_value="extrapolate")
-
-    def get_adjusted_spline(self):
-        # Ensure run has been called
-        if hasattr(self, "adjusted_spline"):
-            return self.adjusted_spline
-        else:
-            raise ValueError("Spline has not been fitted yet.")
-
-    def _fit_initial_spline(self):
-        return UnivariateSpline(self.x, self.y, s=self.spline_error)
-
-    def _apply_isotonic_regression(self, initial_spline) -> np.ndarray:
-        y_predictions = initial_spline(self.x)
-        ir = IsotonicRegression(increasing=False)
-        adjusted_y = ir.fit_transform(self.x, y_predictions)
-        return adjusted_y
-
-    @staticmethod
-    def _get_sorted_data(binned_data: dd.DataFrame) -> SortedData:
-        sorted_data = binned_data.sort_values("average_distance", ascending=True)
-        x = compute(sorted_data["average_distance"])[0]
-        y = compute(sorted_data["average_contact_probability"])[0]
-        return SortedData(x=x, y=y)
 
 class SplineAnalysis:
 

@@ -56,9 +56,11 @@ class StatController:
         return inter_stats
 
     def _create_metabinned_data(self, data):
-        total_interactions = self.metadata.max_possible_interaction_count_intra
-        intra_counts_per_chromosome = self.metadata.interaction_count_per_chromosome_intra
-        metabinned_data = EqualOccupancyBinner(self.config, data).bin_data(data, total_interactions, intra_counts_per_chromosome)
+        total_possible_interacting_bins_intra = self.metadata.max_possible_interacting_bins_intra
+        max_possible_interacting_bins_per_chromosome_intra = self.metadata.max_possible_interacting_bins_per_chromosome_intra
+        metabinned_data = EqualOccupancyBinner(self.config, data).bin_data(data, total_possible_interacting_bins_intra, max_possible_interacting_bins_per_chromosome_intra)
+        # aggregated_data = FrequencyAggregator(self.config).aggregate_frequencies(metabinned_data)
+        # print(f"Aggregated data: {aggregated_data}")
         return metabinned_data
 
     def _fit_spline(self, metabinned_data):

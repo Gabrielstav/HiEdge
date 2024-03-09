@@ -6,6 +6,15 @@ import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 
+
+# TODO:
+#   So the metabins is divided into equal occupancy bins across the genome, but the target should insteaed be that each chromosome has the same number of metabins?
+#   Because in low resolution, smaller chromosomes will have all interactions in one metabin
+#   Another approach is find metabin with lowest interaction count, then adjust all other metabins to have the similar interaction count
+#   This will ensure that the metabins are more evenly distributed across the genome
+#   But chromosomes are treated as separate entities in intra-datasets, so this might not be the best approach, as smaller chromosomes will then dictate the binning of larger ones
+#
+
 class MidpointCalculator:
 
     def __init__(self, config: Config):
@@ -87,7 +96,6 @@ class EqualOccupancyBinner:
 
     @staticmethod
     def _apply_tiebreak_condition(data: dd.DataFrame) -> dd.DataFrame:
-
         # Determine if tiebreak is needed
         data["needs_tiebreak"] = (
                 (data["genomic_distance"] == data["genomic_distance"].shift(1)) &
@@ -107,43 +115,85 @@ class EqualOccupancyBinner:
         return data
 
     @staticmethod
+    def _calculate_unique_distances_of_total_possible_bins(data: dd.DataFrame) -> dd.DataFrame:
+        # Calculate unique distances per chromosome
+        unique_distances_per_chromosome = data[data["chr_1"] == data["chr_2"]].groupby("chr_1")["genomic_distance"].nunique().compute()
+        print(f"Unique distances per chromosome: {unique_distances_per_chromosome}")
+        return unique_distances_per_chromosome
+
+    # TODO: Bin stats needs to calculate these values:
+
+    # 0. range of distances in each metabin (EZ)
+    #       - min and max distance for each bin (range)
+
+    # 1. no. of possible pairs w/in this range of distances (harder but easy)
+    #       - number of possible pairs for each distance in metabin
+    #           - in interaction_calculator make method to find each distance for every possible pair
+    #       * possPairsInRange = currBin[1]
+
+    # 2. sumoverallContactCounts (EZ)
+    #       - sum of interaction counts in each metabin
+
+    # 3. Sumoveralldistances in this bin in distScaling vals (EZ)
+    #       - sum of genomic distance in each metabin scaled by distScaling factor
+    #       * distScaling=1000000.0
+    #       * currBin[3]+=(float(intxnDistance/distScaling)*npairs)
+
+    # 4. average contact count in each metabin (DONE)
+    #       - average interaction count in each metabin (contact probability).
+    #       * computed as total interaction counts in metabin divided by the number of possible pairs,
+    #       * then normalized by some factor reflective of the overall dataset's interaction density.
+    #       * sumCC = currBin[2], possPairsInRange = currBin[1]
+    #       * observedIntraInRangeSum += interxn.getCount() (total interactions across all bins)
+    #       * avgCC = (1.0*sumCC/possPairsInRange)/observedIntraInRangeSum
+
+    # 5. average genomic distance in each metabin (DONE)
+    #       - average genomic distance in each metabin
+    #       * computed as the sum of genomic distances in each metabin divided by the number of possible pairs?
+    #       * sumDistB4Scaling = currBin[3]
+    #       * avgDist = distScaling*(sumDistB4Scaling/currBin[7])
+    #       * currBin[5]=avgDist
+
+    # 6. bins (EZ)
+    #       - number of bins (or just the bin ID's) in each metabin?
+
+    # TODO: Figure out if this is applicable and if so, how it works
+    # 7. no. of possible pairs w/ proper dist (harder)
+    #       - similar to #1, but increasing or decreasing based on possible contacts withtin the distance range?
+
+    @staticmethod
     def _calculate_metabin_stats(data_binned: dd.DataFrame, total_interactions: int, intra_counts_per_chromosome: dict) -> dd.DataFrame:
-        # Assuming intra_counts_per_chromosome is a dictionary with chromosome as keys and counts as values
-        # Convert counts per chrom metadata to DataFrame
+        # Get max possible interacting bins per chromosome from metadata
         counts_df = pd.DataFrame(list(intra_counts_per_chromosome.items()), columns=["chr_1", "possible_pairs"])
+
+        # get unique distances per chromosome
+        unique_distances_per_chromosome = data_binned[data_binned["chr_1"] == data_binned["chr_2"]].groupby("chr_1")["genomic_distance"].nunique().compute()
+        print(f"Unique distances per chromosome: {unique_distances_per_chromosome}")
+
+        # TODO: Possible pairs is the same across metabins, need to adjust this based on genomic distance in metabins
 
         # Ensure bin_stats is a DataFrame that includes a "chr_1" column for merging
         bin_stats = data_binned.groupby("metabin_label").agg({
             "genomic_distance": "mean",
             "interaction_count": "sum",
-            "chr_1": "first"  # Assuming all entries in a bin belong to the same chromosome, adjust as needed
+            "chr_1": "first"  # If all entries in one metabin belong to the same chromosome
         }).reset_index().rename(columns={
             "genomic_distance": "average_distance",
-            "interaction_count": "total_contacts"
+            "interaction_count": "total_possible_pairs"
         })
 
         # Merge to associate each bin with its possible pairs count
         bin_stats = dd.merge(bin_stats, counts_df, on="chr_1", how="left")
 
-        # Now, calculate average contact probability per metabin
-        bin_stats["average_contact_probability"] = bin_stats["total_contacts"] / total_interactions
+        # Calculate average contact probability per metabin
+        # TODO: This is wrong, should at least use per chromosome total interactions
+        bin_stats["average_contact_probability"] = bin_stats["total_possible_pairs"] / total_interactions
 
+        print(f"Head and tail of bin stats ddf: {bin_stats.compute()}")
         return bin_stats
 
-    @staticmethod
-    def _merge_bin_stats_with_interaction_dataframe(bin_stats: dd.DataFrame, interaction_dataframe: dd.DataFrame) -> dd.DataFrame:
 
-        # Merge bin statistics back into the original DataFrame (not used anymore)
-        if not isinstance(bin_stats, dd.DataFrame):
-            print("Converting bin_stats stats data to dask dataframe")
-            bin_stats = dd.from_pandas(bin_stats, npartitions=1)
-        if not isinstance(interaction_dataframe, dd.DataFrame):
-            print("Converting interaction dataframe to dask dataframe")
-            interaction_dataframe = dd.from_pandas(interaction_dataframe, npartitions=1)
-
-        return dd.merge(interaction_dataframe, bin_stats, on="metabin_label", how="left")
-
-
+# TODO: This is not called, fix this in stat_controller.py?
 class FrequencyAggregator:
 
     def __init__(self, config: Config):
@@ -152,9 +202,8 @@ class FrequencyAggregator:
     # Aggregate frequencies of genomic distances
     @staticmethod
     def aggregate_frequencies(data: dd.DataFrame) -> dd.DataFrame:
-        print(data)
         aggregated_data = data.groupby("average_distance").agg({
-            "interaction_count": ["sum", "mean", "std"]
+            "total_possible_bins": ["sum", "mean", "std"]
         }).reset_index()
         aggregated_data.columns = ["average_distance", "interaction_sum", "interaction_mean", "interaction_std"]
         return aggregated_data

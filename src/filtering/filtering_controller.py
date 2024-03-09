@@ -1,5 +1,4 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
-import pandas as pd
 
 # Import modules
 from src.setup.config_loader import Config
@@ -84,12 +83,13 @@ class FilteringController:
             bias_filter = FilterBias()
             output.data = bias_filter.filter_bias(output.data)
 
+
     @staticmethod
     def _calculate_interaction_counts(output):
         interaction_calculator = InteractionCalculator(output.data)
 
         if output.metadata.interaction_type == "intra":
-            total_possible_intra, intra_per_chromosome_df = interaction_calculator.calculate_intra_interactions()
+            total_possible_intra, intra_per_chromosome_df = interaction_calculator.calculate_total_possible_bins_intra()
 
             # Convert DataFrame to dictionary with chromosomes as keys and counts as values
             chromosome_counts_dict = intra_per_chromosome_df.set_index("chr_1")["possible_intra"].to_dict()
@@ -99,12 +99,12 @@ class FilteringController:
             sorted_chromosome_counts_dict = {chrom: chromosome_counts_dict[chrom] for chrom in sorted_chromosome_keys}
 
             # Update metadata with sorted dictionary and total count
-            output.metadata.max_possible_interaction_count_intra = total_possible_intra
-            output.metadata.interaction_count_per_chromosome_intra = sorted_chromosome_counts_dict
+            output.metadata.max_possible_interacting_bins_intra = total_possible_intra
+            output.metadata.max_possible_interacting_bins_per_chromosome_intra = sorted_chromosome_counts_dict
 
         elif output.metadata.interaction_type == "inter":
-            total_possible_inter = interaction_calculator.calculate_inter_interactions()
-            output.metadata.max_possible_interaction_count_inter = total_possible_inter
+            total_possible_inter = interaction_calculator.calculate_total_possible_bins_inter()
+            output.metadata.max_possible_interacting_bins_inter = total_possible_inter
 
     def _instantiate_metadata(self, interaction_type):
         # Instantiate metadata based on interaction type, including placeholder for interaction counts.
@@ -113,7 +113,7 @@ class FilteringController:
             resolution=self.metadata.resolution,
             interaction_type=interaction_type,
             bias_file_path=self.metadata.bias_file_path,
-            max_possible_interaction_count_intra=None,
-            max_possible_interaction_count_inter=None,
-            interaction_count_per_chromosome_intra=None,
+            max_possible_interacting_bins_intra=None,
+            max_possible_interacting_bins_inter=None,
+            max_possible_interacting_bins_per_chromosome_intra=None,
         )

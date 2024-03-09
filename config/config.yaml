@@ -42,7 +42,7 @@ pipeline_settings:
   # Filtering settings
   filter_blacklist: True  # If true, filter out interactions in blacklist regions (blacklist file path)
   filter_cytobands: True  # If true, filter out interactions in cytoband regions (cytobands file path)
-  remove_chromosomes: ["chr3", "chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from filtering. Empty list means no chromosomes are selected.
+  remove_chromosomes: ["chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from filtering. Empty list means no chromosomes are selected.
   select_chromosomes: [] # List of strings of chromosome(s) to include in filtering, all chromosomes not selected are omitted. Empty list means no specific chromosomes are selected.
 
   select_specific_regions: False
@@ -64,8 +64,8 @@ pipeline_settings:
   use_interaction_distance_filters: True  # If true, filter out interactions based on distance
   interaction_distance_filters:
     1000000:
-      min_distance: 2000000  # Minimum distance for interactions to be considered
-      max_distance: 20000000  # Maximum distance for interactions to be considered
+      min_distance: 200000  # Minimum distance for interactions to be considered
+      max_distance: 10000000  # Maximum distance for interactions to be considered
     500000:
       min_distance: 1000000  # Minimum distance for interactions to be considered
       max_distance: 5000000  # Maximum distance for interactions to be considered
@@ -77,11 +77,11 @@ pipeline_settings:
 statistical_settings:
   spline_passes: 2  # Number of spline passes
   fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values by Benjamini-Hochberg procedure
-  metabin_occupancy: 300  # Target count for equal occupancy bins for metabinning to spline fit
+  metabin_occupancy: 200  # Target count for equal occupancy bins for metabinning to spline fit
   use_hicpro_bias: True  # If true, use bias files from HiC-Pro for adjusting expected interaction frequencies before statistical testing. If false, no bias files are used.
   bias_lower_bound: 0.5  # Lower bound for bias values for filtering
   bias_upper_bound: 2.0  # Upper bound for bias values for filtering
-  use_filtered_data_for_average_contact_probability: True # If true, use filtered data for average contact probability calculation. If false, use raw (unfiltered) data.
+  use_filtered_data_for_average_contact_probability: False # If true, use filtered data for average contact probability calculation. If false, use raw (unfiltered) data.
 
 
 
