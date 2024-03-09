@@ -8,7 +8,7 @@ from src.filtering.range_filter import FilterRanges
 from src.filtering.filtering_utils import SplitByInteractionType, FilterBias
 from src.filtering.blacklist_filter import RemoveBlacklistedRegions
 from src.filtering.cytobands_filter import RemoveCytobandRegions
-from src.data_preparation.interaction_calculator import InteractionCalculator
+from src.data_preparation.interaction_calculator import PossiblePairsCalculator
 from src.filtering.filtering_utils import chromosome_key_sort
 from typing import List
 import dask.dataframe as dd
@@ -86,7 +86,7 @@ class FilteringController:
 
     @staticmethod
     def _calculate_interaction_counts(output):
-        interaction_calculator = InteractionCalculator(output.data)
+        interaction_calculator = PossiblePairsCalculator(output.data)
 
         if output.metadata.interaction_type == "intra":
             total_possible_intra, intra_per_chromosome_df = interaction_calculator.calculate_total_possible_bins_intra()
