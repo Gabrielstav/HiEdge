@@ -2,13 +2,16 @@
 
 # Import modules
 from src.setup.containers import StatisticalOutput
-from src.statistics.intra_statistics import DistanceCalculator, EqualOccupancyBinner, MidpointCalculator, DistanceFilter
+from src.statistics.intra_statistics import IntraStatsProcessor
+from src.statistics.stat_utils import MidpointCalculator, DistanceCalculator, DistanceFilter
 from src.statistics.inter_statistics import InterStatisticsCalculator
 from src.statistics.spline_fit import SplineFitter, SplineAnalysis
 from src.statistics.pvals import IntraPValueCalculator, InterPValueCalculator
 from src.statistics.fdr import FDRCalculator
 from src.setup.config_loader import Config
 
+
+# TODO: After q-vals, determine outliers and re-run spline fitting based on num-pass from config with outliers removed (basically just re-run this moethod with outliers removed)
 
 class StatController:
 
@@ -20,6 +23,7 @@ class StatController:
     def run(self):
         if self.metadata.interaction_type == "intra":
             print(f"Running intra stats for experiment: {str(self.metadata.experiment)} with resolution: {str(self.metadata.resolution)}")
+            print(f"Metadata in stat controller: {self.metadata}")
             return self._process_intra_stats()
         elif self.metadata.interaction_type == "inter":
             return self._process_inter_stats()
@@ -28,9 +32,8 @@ class StatController:
 
     def _process_intra_stats(self):
         filtered_data = self._filter_on_distances()
-        metabinned_data = self._create_metabinned_data(filtered_data)
-        spline = self._fit_spline(metabinned_data)
-        # TODO: After q-vals, determine outliers and re-run spline fitting based on num-pass from config with outliers removed
+        metabinned_data_with_stats = IntraStatsProcessor(self.config, filtered_data, self.metadata.unique_bins_per_chromosome).run()
+        spline = self._fit_spline(metabinned_data_with_stats)
         pvals = self._calculate_intra_pvals(spline, filtered_data)
         fdr = self._calculate_fdr_intra(pvals)
         return StatisticalOutput(metadata=self.metadata, data=fdr)
@@ -55,22 +58,13 @@ class StatController:
         inter_stats = InterStatisticsCalculator(inter_data, self.config).compute_inter_stats()
         return inter_stats
 
-    def _create_metabinned_data(self, data):
-        total_possible_interacting_bins_intra = self.metadata.max_possible_interacting_bins_intra
-        max_possible_interacting_bins_per_chromosome_intra = self.metadata.max_possible_interacting_bins_per_chromosome_intra
-        metabinned_data = EqualOccupancyBinner(self.config, data).bin_data(data, total_possible_interacting_bins_intra, max_possible_interacting_bins_per_chromosome_intra)
-        # aggregated_data = FrequencyAggregator(self.config).aggregate_frequencies(metabinned_data)
-        # print(f"Aggregated data: {aggregated_data}")
-        return metabinned_data
-
     def _fit_spline(self, metabinned_data):
         spline_fitter = SplineFitter(metabinned_data, self.config)
-        spline = spline_fitter.run()
-        return spline
+        spline_fitter.fit_spline().enforce_monotonicity()
+        return spline_fitter
 
     def _spline_stats(self, spline, spline_input):
         spline_analysis = SplineAnalysis(self.config, spline, spline_input)
-        # TODO: Log this and use for plotting later
         spline_stats = spline_analysis.calculate_mse(), spline_analysis.calculate_residuals(), spline_analysis.calculate_r_squared()
         return spline_stats
 

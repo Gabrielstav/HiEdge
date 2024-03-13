@@ -1,15 +1,10 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # Import modules
-from src.data_preparation.interaction_calculator import PossiblePairsCalculator
 from src.data_preparation.bias_merger import BiasMerger
 from src.data_preparation.interaction_creator import InteractionCreator
 from src.setup.containers import InteractionOutput
 from src.setup.config_loader import Config
-from typing import Dict
-import dask.dataframe as dd
-
-# TODO: Remove interaction calculator calls (this is handled in filtering controller now)
 
 class DataPreparationController:
 

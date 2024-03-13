@@ -44,6 +44,7 @@ pipeline_settings:
   filter_cytobands: True  # If true, filter out interactions in cytoband regions (cytobands file path)
   remove_chromosomes: ["chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from filtering. Empty list means no chromosomes are selected.
   select_chromosomes: [] # List of strings of chromosome(s) to include in filtering, all chromosomes not selected are omitted. Empty list means no specific chromosomes are selected.
+  filter_self_interactions: False # If true, remove self-interacting bins (interactions between hic-contacts in the same bin)
 
   select_specific_regions: False
   select_regions:
@@ -65,7 +66,7 @@ pipeline_settings:
   interaction_distance_filters:
     1000000:
       min_distance: 200000  # Minimum distance for interactions to be considered
-      max_distance: 10000000  # Maximum distance for interactions to be considered
+      max_distance: 90000000  # Maximum distance for interactions to be considered
     500000:
       min_distance: 1000000  # Minimum distance for interactions to be considered
       max_distance: 5000000  # Maximum distance for interactions to be considered
@@ -77,7 +78,7 @@ pipeline_settings:
 statistical_settings:
   spline_passes: 2  # Number of spline passes
   fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values by Benjamini-Hochberg procedure
-  metabin_occupancy: 200  # Target count for equal occupancy bins for metabinning to spline fit
+  metabin_occupancy: 100  # Target count for equal occupancy bins for metabinning to spline fit
   use_hicpro_bias: True  # If true, use bias files from HiC-Pro for adjusting expected interaction frequencies before statistical testing. If false, no bias files are used.
   bias_lower_bound: 0.5  # Lower bound for bias values for filtering
   bias_upper_bound: 2.0  # Upper bound for bias values for filtering
@@ -85,15 +86,15 @@ statistical_settings:
 
 
 
-dask_settings:
-  # Dataframe
-  chunksize: 50000  # Default chunk size for dataframes
-  # Scheduler
-  work_stealing: True
-  default: "threads"  # or 'processes' or 'distributed'
-  # Memory
-  target: 0.9  # fraction of memory to try to stay beneath
-  spill: 0.95  # fraction at which we start spilling to disk
-  pause: 0.98  # fraction at which we halt computation and warn
-  terminate: 1.0  # fraction at which we kill the worker
-  no_termination: True
+#dask_settings:
+#  # Dataframe
+#  chunksize: 50000  # Default chunk size for dataframes
+#  # Scheduler
+#  work_stealing: True
+#  default: "threads"  # or 'processes' or 'distributed'
+#  # Memory
+#  target: 0.9  # fraction of memory to try to stay beneath
+#  spill: 0.95  # fraction at which we start spilling to disk
+#  pause: 0.98  # fraction at which we halt computation and warn
+#  terminate: 1.0  # fraction at which we kill the worker
+#  no_termination: True

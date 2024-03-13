@@ -65,6 +65,7 @@ class PipelineSettings:
     inter_resolutions: List[int]
     filter_blacklist: bool
     filter_cytobands: bool
+    filter_self_interactions: bool
     remove_chromosomes: List[str]
     select_chromosomes: List[str]
     select_specific_regions: bool
@@ -107,15 +108,15 @@ class StatisticalSettings(BaseModel):
     use_filtered_data_for_average_contact_probability: bool
 
 
-class DaskSettings(BaseModel):
-    chunksize: int
-    work_stealing: bool
-    default: str
-    target: float
-    spill: float
-    pause: float
-    terminate: float
-    no_termination: bool
+# class DaskSettings(BaseModel):
+#     chunksize: int
+#     work_stealing: bool
+#     default: str
+#     target: float
+#     spill: float
+#     pause: float
+#     terminate: float
+#     no_termination: bool
 
 
 class Config(BaseModel):
@@ -124,7 +125,7 @@ class Config(BaseModel):
     paths: Paths
     pipeline_settings: PipelineSettings
     statistical_settings: StatisticalSettings
-    dask_settings: DaskSettings
+    # dask_settings: DaskSettings
 
 
 class InstantiateConfig:

@@ -12,12 +12,10 @@ class Metadata:
     resolution: int
     interaction_type: Optional[str] = None
     bias_file_path: Optional[Path] = None
-    # max_possible_interaction_count_intra: Optional[int] = None
-    # max_possible_interaction_count_inter: Optional[int] = None
-    # interaction_count_per_chromosome_intra: Optional[dict] = None
     max_possible_interacting_bins_intra: Optional[int] = None
     max_possible_interacting_bins_inter: Optional[int] = None
     max_possible_interacting_bins_per_chromosome_intra: Optional[dict] = None
+    unique_bins_per_chromosome: Optional[dict] = None
 
 @dataclass
 class GroupedFiles:

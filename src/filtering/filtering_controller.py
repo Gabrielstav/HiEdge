@@ -5,13 +5,13 @@ from src.setup.config_loader import Config
 from src.setup.containers import FilteringOutput, Metadata
 from src.filtering.chromosome_filter import FilterChromosomes
 from src.filtering.range_filter import FilterRanges
-from src.filtering.filtering_utils import SplitByInteractionType, FilterBias
+from src.filtering.filtering_utils import SplitByInteractionType, FilterBias, chromosome_key_sort
 from src.filtering.blacklist_filter import RemoveBlacklistedRegions
 from src.filtering.cytobands_filter import RemoveCytobandRegions
 from src.data_preparation.interaction_calculator import PossiblePairsCalculator
-from src.filtering.filtering_utils import chromosome_key_sort
 from typing import List
 import dask.dataframe as dd
+
 
 class FilteringController:
 
@@ -51,10 +51,10 @@ class FilteringController:
             self._apply_blacklist_filtering(output)
             self._apply_cytoband_filtering(output)
             self._apply_bias_filtering(output)
-            self._calculate_interaction_counts(output)
+            self._calculate_possible_pairs(output)
         else:
             self._apply_chromosome_filtering(output)
-            self._calculate_interaction_counts(output)
+            self._calculate_possible_pairs(output)
             self._apply_range_filtering(output)
             self._apply_blacklist_filtering(output)
             self._apply_cytoband_filtering(output)
@@ -83,31 +83,34 @@ class FilteringController:
             bias_filter = FilterBias()
             output.data = bias_filter.filter_bias(output.data)
 
-
     @staticmethod
-    def _calculate_interaction_counts(output):
+    def _calculate_possible_pairs(output):
         interaction_calculator = PossiblePairsCalculator(output.data)
 
         if output.metadata.interaction_type == "intra":
-            total_possible_intra, intra_per_chromosome_df = interaction_calculator.calculate_total_possible_bins_intra()
+            bins_per_chromosome_df = interaction_calculator.unique_bins_per_chromosome_df
+            intra_per_chromosome_df = interaction_calculator.intra_per_chromosome_df
+            total_possible_intra = interaction_calculator.total_possible_intra
 
             # Convert DataFrame to dictionary with chromosomes as keys and counts as values
             chromosome_counts_dict = intra_per_chromosome_df.set_index("chr_1")["possible_intra"].to_dict()
+            bins_per_chromosome_dict = bins_per_chromosome_df.set_index("chr_1")["unique_bins_per_chr"].to_dict()
 
             # Sort the chromosomes order and re-create dictionary in sorted order
             sorted_chromosome_keys = chromosome_key_sort(chromosome_counts_dict.keys())
             sorted_chromosome_counts_dict = {chrom: chromosome_counts_dict[chrom] for chrom in sorted_chromosome_keys}
+            sorted_bins_per_chromosome_dict = {chrom: bins_per_chromosome_dict[chrom] for chrom in sorted_chromosome_keys}
 
             # Update metadata with sorted dictionary and total count
             output.metadata.max_possible_interacting_bins_intra = total_possible_intra
             output.metadata.max_possible_interacting_bins_per_chromosome_intra = sorted_chromosome_counts_dict
+            output.metadata.unique_bins_per_chromosome = sorted_bins_per_chromosome_dict
 
         elif output.metadata.interaction_type == "inter":
             total_possible_inter = interaction_calculator.calculate_total_possible_bins_inter()
             output.metadata.max_possible_interacting_bins_inter = total_possible_inter
 
     def _instantiate_metadata(self, interaction_type):
-        # Instantiate metadata based on interaction type, including placeholder for interaction counts.
         return Metadata(
             experiment=self.metadata.experiment,
             resolution=self.metadata.resolution,
@@ -116,4 +119,5 @@ class FilteringController:
             max_possible_interacting_bins_intra=None,
             max_possible_interacting_bins_inter=None,
             max_possible_interacting_bins_per_chromosome_intra=None,
+            unique_bins_per_chromosome=None
         )

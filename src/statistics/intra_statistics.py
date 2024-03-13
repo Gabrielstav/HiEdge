@@ -2,96 +2,74 @@
 
 # Import modules
 from src.setup.config_loader import Config
+from src.statistics.stat_utils import TotalInteractionsCalculator
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 
 
-# TODO:
-#   So the metabins is divided into equal occupancy bins across the genome, but the target should insteaed be that each chromosome has the same number of metabins?
-#   Because in low resolution, smaller chromosomes will have all interactions in one metabin
-#   Another approach is find metabin with lowest interaction count, then adjust all other metabins to have the similar interaction count
-#   This will ensure that the metabins are more evenly distributed across the genome
-#   But chromosomes are treated as separate entities in intra-datasets, so this might not be the best approach, as smaller chromosomes will then dictate the binning of larger ones
-#
+class IntraStatsProcessor:
 
-class MidpointCalculator:
-
-    def __init__(self, config: Config):
-        self.config = config
-
-    @staticmethod
-    def calculate_midpoints(data: dd.DataFrame) -> dd.DataFrame:
-        data["midpoint_1"] = ((data["start_1"] + data["end_1"]) / 2).astype("int32")
-        data["midpoint_2"] = ((data["start_2"] + data["end_2"]) / 2).astype("int32")
-        return data
-
-
-class DistanceCalculator:
-
-    def __init__(self, config: Config):
-        self.config = config
-
-    @staticmethod
-    def calculate_distances(data: dd.DataFrame) -> dd.DataFrame:
-        # Calculate the genomic distance
-        data["genomic_distance"] = abs(data["midpoint_1"] - data["midpoint_2"]).astype("int32")
-
-        # Filter out data with genomic distance == 0 (self-interactions)
-        filtered_data = data[data["genomic_distance"] != 0]
-
-        return filtered_data
-
-
-class DistanceFilter:
-
-    def __init__(self, config: Config, data: dd.DataFrame, resolution: int):
+    def __init__(self, config, data: dd.DataFrame, unique_bins_per_chromosome: dict):
         self.config = config
         self.data = data
-        self.resolution = resolution
+        self.total_interactions: int = self._calculate_total_interactions()
+        self.unique_bins_per_chromosome = unique_bins_per_chromosome
 
-    def filter_distances(self) -> dd.DataFrame:
-        if self.resolution in self.config.pipeline_settings.interaction_distance_filters and self.config.pipeline_settings.use_interaction_distance_filters:
-            distance_filter_config = self.config.pipeline_settings.interaction_distance_filters[self.resolution]
-            lower_bound = distance_filter_config.min_distance
-            upper_bound = distance_filter_config.max_distance
-            self.data = self.data[(self.data["genomic_distance"] >= lower_bound) & (self.data["genomic_distance"] <= upper_bound)]
+    def __post_init__(self):
+        self.total_interactions = self._calculate_total_interactions()
+
+    def run(self) -> dd.DataFrame:
+
+        # metabin the data and calculate metabin statistics
+        metabinned_data = MetaBinner(self.config, self.data, self.total_interactions).bin_data()
+        binned_data_with_stats = self._calculate_metabin_stats(metabinned_data)
+
+        # aggregate data to metabins
+        binned_data_with_stats = binned_data_with_stats.groupby("metabin_label").agg({
+            "unique_bins_in_metabin": "first",
+            "total_possible_pairs_within_metabin": "first",
+            "metabin_total_contact_count": "first",
+            "average_contact_probability": "first",
+            "average_genomic_distance": "first"
+        }).reset_index()
+
+        return binned_data_with_stats
+
+    def _calculate_metabin_stats(self, binned_data):
+        metabin_stats_calculator = MetabinStatistics(input_data=binned_data, config=self.config, total_interaction_count=self.total_interactions, unique_bins_per_chromosome=self.unique_bins_per_chromosome)
+        return metabin_stats_calculator.apply_metabin_statistics()
+
+    def _calculate_total_interactions(self) -> int:
+        total_interactions = TotalInteractionsCalculator(self.config, self.data).calculate_total_interactions()
+        return total_interactions
+
+class MetaBinner:
+
+    def __init__(self, config: Config, input_data: dd.DataFrame, total_interactions: int):
+        self.config = config
+        self.data = input_data
+        self.total_interactions = total_interactions
+
+    def bin_data(self) -> dd.DataFrame:
+        self._sort_data_by_distance(self.data)
+        self._assign_to_metabins(self.data, self.total_interactions, self.config.statistical_settings.metabin_occupancy)
+        print(f"Data after binning: {self.data}")
         return self.data
 
-
-class EqualOccupancyBinner:
-
-    def __init__(self, config: Config, input_data: dd.DataFrame):
-        self.config = config
-        self.input_data = input_data
-
-    def bin_data(self, data: dd.DataFrame, total_interactions: int, intra_counts_per_chromosome: dict) -> dd.DataFrame:
-        sorted_data = self._sort_data_by_distance(data)
-        total_contacts = self._calculate_total_contacts(data)
-        binned_data = self._assign_to_bins(sorted_data, total_contacts, self.config.statistical_settings.metabin_occupancy)
-        # TODO: Once metabin statistics is done, call it here
-        bin_stats = self._calculate_metabin_stats(binned_data, total_interactions, intra_counts_per_chromosome)
-
-        print(f"Bin stats: {bin_stats}")
-        print(f"Data columns: {data.columns}")
-        return bin_stats
-
     @staticmethod
-    def _sort_data_by_distance(input_data: dd.DataFrame) -> dd.DataFrame:
-        return input_data.sort_values("genomic_distance")
+    def _assign_to_metabins(sorted_data: dd.DataFrame, total_interactions: int, number_of_equal_occupancy_bins: int) -> dd.DataFrame:
 
-    @staticmethod
-    def _calculate_total_contacts(data: dd.DataFrame) -> int:
-        return data["interaction_count"].sum()
+        number_of_equal_occupancy_bins = number_of_equal_occupancy_bins-1
 
-    @staticmethod
-    def _assign_to_bins(sorted_data: dd.DataFrame, total_contacts: int, num_bins: int) -> dd.DataFrame:
-        target_per_bin = total_contacts / num_bins
+        target_per_metabin = total_interactions // number_of_equal_occupancy_bins
         sorted_data["cumulative_count"] = sorted_data["interaction_count"].cumsum()
-        sorted_data["metabin_label"] = (sorted_data["cumulative_count"] / target_per_bin).astype("int")
+        sorted_data["metabin_label"] = (sorted_data["cumulative_count"] / target_per_metabin).astype("int")
+
 
         # Handle the tiebreak condition
-        sorted_data = EqualOccupancyBinner._apply_tiebreak_condition(sorted_data)
+        sorted_data = MetaBinner._apply_tiebreak_condition(sorted_data)
+        print(f"Head of sorted data in assign_to_bins: {sorted_data.head(20)}")
 
         return sorted_data
 
@@ -109,174 +87,76 @@ class EqualOccupancyBinner:
 
         data = data.drop(["needs_tiebreak"], axis=1)
 
-        if not isinstance(data, dd.DataFrame):
-            data = dd.from_pandas(data, npartitions=1)
-
         return data
 
-    def _calculate_metabin_stats_new(self, data_binned: dd.DataFrame, total_interactions: int, intra_counts_per_chromosome: dict) -> dd.DataFrame:
-        # just call the method from MetabinStatistics
-        stats = MetabinStatistics(metabinned_data=data_binned, config=self.config, total_possible_intra=total_interactions, total_possible_intra_per_chromsome=intra_counts_per_chromosome)
-        stats.apply_metabin_statistics()
-
-        return data_binned
-
     @staticmethod
-    def _calculate_metabin_stats(data_binned: dd.DataFrame, total_interactions: int, intra_counts_per_chromosome: dict) -> dd.DataFrame:
-        # Get max possible interacting bins per chromosome from metadata
-        counts_df = pd.DataFrame(list(intra_counts_per_chromosome.items()), columns=["chr_1", "possible_pairs"])
-
-        # get unique distances per chromosome
-        unique_distances_per_chromosome = data_binned[data_binned["chr_1"] == data_binned["chr_2"]].groupby("chr_1")["genomic_distance"].nunique().compute()
-        print(f"Unique distances per chromosome: {unique_distances_per_chromosome}")
-
-        # Ensure bin_stats is a DataFrame that includes a "chr_1" column for merging
-        bin_stats = data_binned.groupby("metabin_label").agg({
-            "genomic_distance": "mean",
-            "interaction_count": "sum",
-            "chr_1": "first"
-        }).reset_index().rename(columns={
-            "genomic_distance": "average_distance",
-            "interaction_count": "total_possible_pairs"
-        })
-
-        # Merge to associate each bin with its possible pairs count
-        bin_stats = dd.merge(bin_stats, counts_df, on="chr_1", how="left")
-
-        # Calculate average contact probability per metabin
-        # TODO: This is wrong, should at least use per chromosome total interactions
-        bin_stats["average_contact_probability"] = bin_stats["total_possible_pairs"] / total_interactions
-
-        print(f"Head and tail of bin stats ddf: {bin_stats.compute()}")
-        return bin_stats
-
-# TODO: Bin stats needs to calculate these values:
-
-# 0. range of distances in each metabin (DONE)
-#       - min and max distance for each bin (range)
-
-# 1. no. of possible pairs w/in this range of distances (need to implement this)
-#       - number of possible pairs for each distance in metabin
-#           - in interaction_calculator make method to find each distance for every possible pair
-#       * possPairsInRange = currBin[1]
-
-# 2. sumoverallContactCounts (DONE)
-#       - sum of interaction counts in each metabin
-
-# 3. Sumoveralldistances in this bin in distScaling vals (DONE)
-#       - sum of genomic distance in each metabin scaled by distScaling factor
-#       * distScaling=1000000.0
-#       * currBin[3]+=(float(intxnDistance/distScaling)*npairs)
-
-# 4. average contact count in each metabin (DONE)
-#       - average interaction count in each metabin (contact probability).
-#       * computed as total interaction counts in metabin divided by the number of possible pairs,
-#       * then normalized by some factor reflective of the overall dataset's interaction density:
-#       * sumCC = currBin[2], possPairsInRange = currBin[1]
-#       * observedIntraInRangeSum += interxn.getCount() (total interactions across all bins)
-#       * avgCC = (1.0*sumCC/possPairsInRange)/observedIntraInRangeSum
-
-# 5. average genomic distance in each metabin (DONE)
-#       - average genomic distance in each metabin
-#       * computed as the sum of genomic distances in each metabin divided by the number of possible pairs?
-#       * sumDistB4Scaling = currBin[3]
-#       * avgDist = distScaling*(sumDistB4Scaling/currBin[7])
-#       * currBin[5]=avgDist
-
-# 6. bins (EZ)
-#       - number of bins (or just the bin ID's) in each metabin? if so, inherent in my dataset
+    def _sort_data_by_distance(input_data: dd.DataFrame) -> dd.DataFrame:
+        return input_data.sort_values("genomic_distance")
 
 
 class MetabinStatistics:
 
-    def __init__(self, metabinned_data, config: Config, total_possible_intra: int, total_possible_intra_per_chromsome: dict):
-        self.data: dd.DataFrame = metabinned_data
+    def __init__(self, input_data: dd.DataFrame, config: Config, total_interaction_count: int, unique_bins_per_chromosome: dict):
+        self.original_data = input_data
         self.config = config
-        self.total_possible_intra = total_possible_intra
-        self.total_possible_intra_per_chromsome = total_possible_intra_per_chromsome
+        self.total_interaction_count = total_interaction_count
+        self.distance_scaling_factor: int = 1000000
+        self.unique_bins_per_chromosome = unique_bins_per_chromosome
 
     def apply_metabin_statistics(self):
         """
-        Apply metabin statistics to the metabinned data, adding each statistic as a new column per metabin in the
-        :return: dd.DataFrame
+        Sequentially apply metabin statistics to the metabinned data.
         """
+        if not isinstance(self.original_data, dd.DataFrame):
+            print(f"Data is not a dask dataframe, converting. Data type: {type(self.original_data)}")
+            data = dd.from_pandas(self.original_data, npartitions=1)
+        else:
+            data = self.original_data
 
-        self._metabin_distance_range(self.data)
-        self._calculate_pairs_per_metabin(self.data)
-        self._sum_overall_contact_counts(self.data)
-        self._sum_overall_distances(self.data)
-        self._average_contact_count(self.data)
-        self._average_genomic_distance(self.data)
-        self._number_of_bins(self.data)
-        self._possible_pairs_with_proper_distance(self.data)
+        data = self._create_unique_bin_id(data)
+        data = self._get_unique_bins_per_metabin(data)
+        data = self._possible_pairs_per_metabin(data)
+        data = self._scaled_distance_sum(data)
+        data = self._sum_of_contact_counts(data)
+        data = self._average_contact_probability(data)
+        data = self._average_genomic_distance(data)
 
-    @staticmethod
-    # 0. range of distances in each metabin
-    def _metabin_distance_range(data: dd.DataFrame) -> dd.DataFrame:
-        min_max_distance_range = data.groupby("metabin_label")["genomic_distance"].agg(["min", "max"]).compute()
-        # add as new column per metabin label (row) in the dataframe
-        data = dd.merge(data, min_max_distance_range, on="metabin_label", how="left")
-        print(f"Min and max distance range: {min_max_distance_range}")
         return data
 
     @staticmethod
-    # 1. no. of possible pairs within this range of distances
-    def _calculate_pairs_per_metabin(data: dd.DataFrame) -> dd.DataFrame:
-        # just calculate unique bins per metabin (need to do this before binning to metabins) and then calculate possible pairs
-        # these will be definition be in-range and represent the possible pairs for the genomic region constituting the metabin
-        pass
+    def _create_unique_bin_id(data: dd.DataFrame) -> dd.DataFrame:
+        data["bin_id"] = data["chr_1"] + data["start_1"].astype(str)
+        return data
 
     @staticmethod
-    # 2. sum overall contact counts
-    def _sum_overall_contact_counts(data: dd.DataFrame) -> dd.DataFrame:
-        sum_overall_contact_counts = data.groupby("metabin_label")["interaction_count"].sum().compute()
-        print(f"Sum overall contact counts: {sum_overall_contact_counts}")
-        return sum_overall_contact_counts
+    def _get_unique_bins_per_metabin(data: dd.DataFrame) -> dd.DataFrame:
+        unique_bins_counts = data.groupby("metabin_label")["bin_id"].nunique().compute().reset_index()
+        data["unique_bins_in_metabin"] = data["metabin_label"].map(unique_bins_counts.set_index("metabin_label")["bin_id"])
+        return data
 
     @staticmethod
-    # TODO: Figure out if I need distScaling, it's just a constant set to avoid integer overflow
-    # 3. sum overall distances in this bin in distScaling values
-    def _sum_overall_distances(data: dd.DataFrame) -> dd.DataFrame:
-        dist_scaling = 1000000
-        sum_overall_distances = data.groupby("metabin_label")["genomic_distance"].sum().compute()
-        sum_overall_distances = (sum_overall_distances / dist_scaling).astype("int32")
-        print(f"Sum overall distances in this bin in distScaling values: {sum_overall_distances}")
-        return sum_overall_distances
+    def _possible_pairs_per_metabin(data: dd.DataFrame) -> dd.DataFrame:
+        data["total_possible_pairs_within_metabin"] = (data["unique_bins_in_metabin"] * (data["unique_bins_in_metabin"] + 1)) // 2
+        return data
 
     @staticmethod
-    # 4. average contact count in each metabin
-    def _average_contact_count(data: dd.DataFrame) -> dd.DataFrame:
-        average_contact_count = data.groupby("metabin_label")["interaction_count"].mean().compute()
-        print(f"Average contact count in each metabin: {average_contact_count}")
-        return average_contact_count
+    def _sum_of_contact_counts(data: dd.DataFrame) -> dd.DataFrame:
+        contact_count = data.groupby("metabin_label")["interaction_count"].transform("sum")
+        data["metabin_total_contact_count"] = contact_count
+        return data
 
-    @staticmethod
-    # 5. average genomic distance in each metabin
-    def _average_genomic_distance(data: dd.DataFrame) -> dd.DataFrame:
-        average_genomic_distance = data.groupby("metabin_label")["genomic_distance"].mean().compute()
-        print(f"Average genomic distance in each metabin: {average_genomic_distance}")
-        return average_genomic_distance
+    def _scaled_distance_sum(self, data: dd.DataFrame) -> dd.DataFrame:
+        bins_per_chrom_series = pd.Series(self.unique_bins_per_chromosome, name="unique_bins_per_chromosome")
+        bins_per_chrom_dd = dd.from_pandas(bins_per_chrom_series.reset_index().rename(columns={"index": "chr_1"}), npartitions=1)
+        data = dd.merge(data, bins_per_chrom_dd, on="chr_1", how="left")
 
-    @staticmethod
-    # 6. bins
-    def _number_of_bins(data: dd.DataFrame) -> dd.DataFrame:
-        number_of_bins = data.groupby("metabin_label").size().compute()
-        print(f"Number of bins in each metabin: {number_of_bins}")
-        return number_of_bins
+        data["sum_distances"] = data.groupby("metabin_label")["genomic_distance"].transform("sum") / (self.distance_scaling_factor * data["unique_bins_per_chromosome"])
+        return data
 
+    def _average_contact_probability(self, data: dd.DataFrame) -> dd.DataFrame:
+        data["average_contact_probability"] = ((data["metabin_total_contact_count"] / data["total_possible_pairs_within_metabin"]) / self.total_interaction_count)
+        return data
 
-
-# TODO: This is not called, fix this in stat_controller.py?
-class FrequencyAggregator:
-
-    def __init__(self, config: Config):
-        self.config = config
-
-    # Aggregate frequencies of genomic distances
-    @staticmethod
-    def aggregate_frequencies(data: dd.DataFrame) -> dd.DataFrame:
-        aggregated_data = data.groupby("average_distance").agg({
-            "total_possible_bins": ["sum", "mean", "std"]
-        }).reset_index()
-        aggregated_data.columns = ["average_distance", "interaction_sum", "interaction_mean", "interaction_std"]
-        return aggregated_data
+    def _average_genomic_distance(self, data: dd.DataFrame) -> dd.DataFrame:
+        data["average_genomic_distance"] = self.distance_scaling_factor*(data["sum_distances"]/data["unique_bins_in_metabin"])
+        return data

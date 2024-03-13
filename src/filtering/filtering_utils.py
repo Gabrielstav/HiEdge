@@ -15,7 +15,6 @@ class SplitByInteractionType:
         inter_df = self.bedpe_ddf[self.bedpe_ddf["chr_1"] != self.bedpe_ddf["chr_2"]]
         return intra_df, inter_df
 
-
 class FilterBias:
     @staticmethod
     def filter_bias(data: dd.DataFrame) -> dd.DataFrame:
