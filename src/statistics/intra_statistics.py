@@ -153,6 +153,7 @@ class MetabinStatistics:
         data["sum_distances"] = data.groupby("metabin_label")["genomic_distance"].transform("sum") / (self.distance_scaling_factor * data["unique_bins_per_chromosome"])
         return data
 
+    # TODO ensure that this is correct (sumoverallContactCounts/possPairsInRange)/observedIntraInRangeSum)
     def _average_contact_probability(self, data: dd.DataFrame) -> dd.DataFrame:
         data["average_contact_probability"] = ((data["metabin_total_contact_count"] / data["total_possible_pairs_within_metabin"]) / self.total_interaction_count)
         return data

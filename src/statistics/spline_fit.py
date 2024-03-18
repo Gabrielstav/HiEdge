@@ -12,7 +12,10 @@ import matplotlib.pyplot as plt
 
 SortedData = namedtuple("SortedData", ["x", "y"])
 
-# TODO: Refactor this to work with new aggregated statistics
+# TODO: Figure out why the old implementation didn't work and make the new one cleaner
+#   add plots in plots/spline_fitting
+#   pre-sort data (or at least sort it once)
+#   make spline, error, x and y instance variables?
 
 class SplineFitter:
     def __init__(self, data, config):
@@ -31,12 +34,17 @@ class SplineFitter:
         x = sorted_data["average_genomic_distance"].values
         y = sorted_data["average_contact_probability"].values
 
-        # Since y is now a NumPy array, min() works as expected
+        print(f"X values: {x}")
+        print(f"Y values: {y}")
+
         spline_error = min(y) ** 2
         self.spline_error = spline_error
 
+        # rescale y-values maybe??
+        # y_rescaled = (y - y.min()) / (y.max() - y.min()) * (1 - 1e-6) + 1e-6
+
         self.spline = UnivariateSpline(x, y, s=spline_error)
-        return self  # Return the instance itself to allow method chaining
+        return self
 
     def enforce_monotonicity(self):
         # again, sort the data
@@ -45,16 +53,29 @@ class SplineFitter:
         else:
             sorted_data = self.data.sort_values("average_genomic_distance")
         x = sorted_data["average_genomic_distance"].values
+
+        # print the x values
+        print(f"X values: {x}")
+
+        # print the original y values
+        print(f"Y values: {self.spline(x)}")
+
         y = self.spline(x)  # Evaluate spline on the original x values
 
-        iso_reg = IsotonicRegression(increasing=False)
+        iso_reg = IsotonicRegression(increasing=True, y_min=min(y), y_max=max(y))
         y_mono = iso_reg.fit_transform(x, y)
 
+        # print the monotonic y values
+        print(f"Monotonic Y values: {y_mono}")
+
         self.spline = UnivariateSpline(x, y_mono, s=self.spline_error)
-        return self  # Optionally allow further chaining
+        return self
 
     def predict(self, x_new):
         return self.spline(x_new)
+
+
+    
 
 # class SplineFitter:
 #     def __init__(self, binned_data: dd.DataFrame, config):
@@ -93,8 +114,6 @@ class SplineFitter:
 #         x_interpolated = np.linspace(min(self.x), max(self.x), 1000)
 #         y_cubic = interp1d(self.x, self.y, kind="cubic")
 #         initial_spline = UnivariateSpline(x_interpolated, y_cubic(x_interpolated), s=self.spline_error)
-#         self._plot_spline()
-#         # initial_spline = UnivariateSpline(self.x, self.y, s=self.spline_error)
 #         return initial_spline
 #
 #     def _apply_isotonic_regression(self, initial_spline) -> np.ndarray:
@@ -113,45 +132,8 @@ class SplineFitter:
 #         x = compute(sorted_data["average_genomic_distance"])[0]
 #         y = compute(sorted_data["average_contact_probability"])[0]
 #         return SortedData(x=x, y=y)
-#
-#     def _plot_spline(self):
-#         pass
-#
-#     def _plot_initial_data(self):
-#         # TODO: DEBUGGING
-#
-#         print(f"Genomic distances: {self.x}")
-#         print(f"Probabilities before spline: {self.y}")
-#         print(f"Length of x: {len(self.x)}")
-#         print(f"Length of y: {len(self.y)}")
-#
-#         plt.figure(figsize=(12, 6))
-#
-#         plt.subplot(1, 2, 1)
-#         plt.hist(self.x, bins=50)
-#         plt.title('Distribution of Genomic Distances (x)')
-#         plt.xlabel('Genomic Distance')
-#         plt.ylabel('Frequency')
-#
-#         plt.subplot(1, 2, 2)
-#         plt.hist(self.y, bins=50)
-#         plt.title('Distribution of Probabilities (y)')
-#         plt.xlabel('Probability')
-#         plt.ylabel('Frequency')
-#
-#         plt.tight_layout()
-#         plt.show()
-#
-#         print(f'Min X: {min(self.x)}, Max X: {max(self.x)}')
-#         print(f'Min Y: {min(self.y)}, Max Y: {max(self.y)}')
-#
-#         plt.scatter(self.x, self.y, alpha=0.5)
-#         plt.title('Genomic Distance vs Probability')
-#         plt.xlabel('Genomic Distance')
-#         plt.ylabel('Probability')
-#         plt.show()
-#
-#
+
+
 class SplineAnalysis:
 
     def __init__(self, x, y, spline):
