@@ -34,14 +34,11 @@ class SplineFitter:
         x = sorted_data["average_genomic_distance"].values
         y = sorted_data["average_contact_probability"].values
 
-        print(f"X values: {x}")
-        print(f"Y values: {y}")
+        print(f"sorted X values: {x}")
+        print(f"sorted Y values: {y}")
 
         spline_error = min(y) ** 2
         self.spline_error = spline_error
-
-        # rescale y-values maybe??
-        # y_rescaled = (y - y.min()) / (y.max() - y.min()) * (1 - 1e-6) + 1e-6
 
         self.spline = UnivariateSpline(x, y, s=spline_error)
         return self
@@ -52,17 +49,12 @@ class SplineFitter:
             sorted_data = self.data.compute().sort_values("average_genomic_distance")
         else:
             sorted_data = self.data.sort_values("average_genomic_distance")
+
         x = sorted_data["average_genomic_distance"].values
-
-        # print the x values
-        print(f"X values: {x}")
-
-        # print the original y values
-        print(f"Y values: {self.spline(x)}")
 
         y = self.spline(x)  # Evaluate spline on the original x values
 
-        iso_reg = IsotonicRegression(increasing=True, y_min=min(y), y_max=max(y))
+        iso_reg = IsotonicRegression(increasing=False, y_min=min(y), y_max=max(y))
         y_mono = iso_reg.fit_transform(x, y)
 
         # print the monotonic y values
@@ -74,8 +66,25 @@ class SplineFitter:
     def predict(self, x_new):
         return self.spline(x_new)
 
+    def plot_spline(self):
+        if isinstance(self.data, dd.DataFrame):
+            sorted_data = self.data.compute().sort_values("average_genomic_distance")
+        else:
+            sorted_data = self.data.sort_values("average_genomic_distance")
 
-    
+        x = sorted_data["average_genomic_distance"].values
+        y = sorted_data["average_contact_probability"].values
+
+        plt.scatter(x, y, alpha=0.5)
+        plt.plot(x, self.spline(x), color="red")
+        plt.title('Genomic Distance vs Probability')
+        plt.xlabel('Genomic Distance')
+        plt.ylabel('Probability')
+        plt.show()
+
+
+
+
 
 # class SplineFitter:
 #     def __init__(self, binned_data: dd.DataFrame, config):

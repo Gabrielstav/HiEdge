@@ -2,11 +2,35 @@
 
 # Import modules
 from dataclasses import dataclass
+import pandas as pd
+from src.statistics.spline_fit import SplineFitter
+from src.setup.config_loader import Config
+
 
 # TODO:
 #   Make plots of initial distance/frequency data
 #   Overay initial spline fit
 #   Overlay spline fit after bias correction and with error estimates, confidence intervals etc
+
+
+class SplinePlotter:
+
+    def __init__(self, config: Config, spline_data: pd.DataFrame):
+        self.config = config
+        self.spline_data = spline_data
+
+    def plot_genomic_distance_vs_probability(self):
+        pass
+
+    def plot_distribution_of_genomic_distances(self):
+        pass
+
+    def plot_distribution_of_probabilities(self):
+        pass
+
+    def plot_spline_fit(self):
+        pass
+
 
 
 # plt.figure(figsize=(12, 6))
