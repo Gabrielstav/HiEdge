@@ -75,10 +75,10 @@ class StatController:
         spline_fitter.fit_spline()
         return spline_fitter
 
-    def _spline_stats(self, spline, spline_input):
-        spline_analysis = SplineAnalysis(self.config, spline, spline_input)
-        spline_stats = spline_analysis.calculate_mse(), spline_analysis.calculate_residuals(), spline_analysis.calculate_r_squared()
-        return spline_stats
+    # def _spline_stats(self, spline, spline_input):
+    #     spline_analysis = SplineAnalysis(self.config, spline, spline_input)
+    #     spline_stats = spline_analysis.calculate_mse(), spline_analysis.calculate_residuals(), spline_analysis.calculate_r_squared()
+    #     return spline_stats
 
     def _calculate_intra_pvals(self, spline, filtered_data):
         pval_calculator = IntraPValueCalculator(filtered_data, spline, self.metadata, self.config)

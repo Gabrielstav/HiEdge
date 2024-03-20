@@ -33,6 +33,7 @@ class InteractionCalculator:
         print(f"Unique distances per chromosome: {unique_distances_per_chromosome}")
         return unique_distances_per_chromosome
 
+# TODO: If this class is needed make it laziliy evaluated and vectorized (dont call compute)
 
 class PossiblePairsCalculator:
     def __init__(self, data: dd.DataFrame):

@@ -47,7 +47,7 @@ pipeline_settings:
   filter_self_interactions: True # If true, remove self-interacting bins (interactions between hic-contacts in the same bin)
 
   # Make plots (visualize data)
-  make_plots: True  # If true, make plots for HiEdge results (spline fit, distance dependant decay, p-value distribution, q-value distribution, etc.)
+  make_plots: False  # If true, make plots for HiEdge results (spline fit, distance dependant decay, p-value distribution, q-value distribution, etc.)
 
   select_specific_regions: False
   select_regions:

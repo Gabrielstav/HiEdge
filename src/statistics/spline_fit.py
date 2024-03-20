@@ -24,7 +24,7 @@ class SplineFitter:
         self._enforce_monotonicity()
         return self
 
-    def predict(self, x_new):
+    def predict(self, x_new) -> float:
         return self.mono_spline(x_new)
 
     def _fit_initial_spline(self):
