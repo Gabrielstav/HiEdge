@@ -9,7 +9,7 @@ from src.statistics.spline_fit import SplineFitter, SplineAnalysis
 from src.statistics.pvals import IntraPValueCalculator, InterPValueCalculator
 from src.statistics.fdr import FDRCalculator
 from src.setup.config_loader import Config
-from matplotlib import pyplot as plt
+from src.plots.spline_plots import SplinePlotter, DistanceDecayPlotter
 
 
 # TODO: After q-vals, determine outliers and re-run spline fitting based on num-pass from config with outliers removed (basically just re-run this moethod with outliers removed)
@@ -34,19 +34,17 @@ class StatController:
     def _process_intra_stats(self):
         filtered_data = self._filter_on_distances()
 
-        # plot data before metabinning to check for distance dependant decay
-        distance_before_metabinning = filtered_data["genomic_distance"]
-        contact_probability_before_metabinning = filtered_data["interaction_count"]
-        plot_data(distance_before_metabinning, contact_probability_before_metabinning, title='Genomic Distance vs. Contact Count', xlabel='Genomic Distance', ylabel='Contact Count')
+        if self.config.pipeline_settings.make_plots:
+            DistanceDecayPlotter(filtered_data, metadata=self.metadata, config=self.config).plot_distance_dependant_decay()
 
         metabinned_data_with_stats = IntraStatsProcessor(self.config, filtered_data, self.metadata.unique_bins_per_chromosome, self.metadata.resolution).run()
 
-        # plot data after metabinning to check for distance dependant decay
-        distance_after_metabinning = metabinned_data_with_stats["average_genomic_distance"]
-        contact_probability_after_metabinning = metabinned_data_with_stats["average_contact_probability"]
-        plot_data(distance_after_metabinning, contact_probability_after_metabinning, title='Average Genomic Distance vs. Contact Probability', xlabel='Average Genomic Distance', ylabel='Average Contact Probability')
-
         spline = self._fit_spline(metabinned_data_with_stats)
+        if self.config.pipeline_settings.make_plots:
+            SplinePlotter(spline, metadata=self.metadata, config=self.config).plot_spline_fit()
+            SplinePlotter(spline, metadata=self.metadata, config=self.config).plot_distance_distributuion()
+            SplinePlotter(spline, metadata=self.metadata, config=self.config).plot_probability_distribution()
+
         pvals = self._calculate_intra_pvals(spline, filtered_data)
         fdr = self._calculate_fdr_intra(pvals)
         return StatisticalOutput(metadata=self.metadata, data=fdr)
@@ -71,11 +69,10 @@ class StatController:
         inter_stats = InterStatisticsCalculator(inter_data, self.config).compute_inter_stats()
         return inter_stats
 
-    def _fit_spline(self, metabinned_data):
-        spline_fitter = SplineFitter(metabinned_data, self.config)
-        spline_fitter.fit_spline().enforce_monotonicity()
-        # plot spline
-        spline_fitter.plot_spline()
+    @staticmethod
+    def _fit_spline(metabinned_data):
+        spline_fitter = SplineFitter(metabinned_data)
+        spline_fitter.fit_spline()
         return spline_fitter
 
     def _spline_stats(self, spline, spline_input):
@@ -102,11 +99,3 @@ class StatController:
         fdr_calculator = FDRCalculator(pvals, self.config)
         fdr = fdr_calculator.run()
         return fdr
-
-def plot_data(x, y, title='Average Genomic Distance vs. Contact Probability', xlabel='Average Genomic Distance', ylabel='Average Contact Probability'):
-    plt.figure(figsize=(10, 6))
-    plt.scatter(x, y, alpha=0.5)
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.show()

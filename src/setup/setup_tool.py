@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 class RunDirectorySetup:
-    subdirs = ["output", "logs", "tmp", "config"]
+    subdirs = ["output", "logs", "tmp", "config", "plots"]
 
     def __init__(self, config: Config, config_path: Path):
         self.config = config
@@ -31,8 +31,11 @@ class RunDirectorySetup:
         print(f"Run directory created at {self.run_path}")
         self.copy_config_file()
 
+        # update the config instance with the correct run path
+        self.config.paths.run_dir = self.run_path
+
     def copy_config_file(self):
         config_filename = f"config_{self.run_name}.yaml"
         config_target_path = self.run_path / "config" / config_filename
-        shutil.copy(self.config_path, config_target_path)  # Use shutil.copy
+        shutil.copy(self.config_path, config_target_path)
         print(f"Configuration file used in current run copied to {config_target_path}")

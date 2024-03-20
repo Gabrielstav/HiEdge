@@ -6,7 +6,6 @@ from src.statistics.stat_utils import TotalInteractionsCalculator
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 
 class IntraStatsProcessor:
@@ -22,7 +21,6 @@ class IntraStatsProcessor:
         self.total_interactions = self._calculate_total_interactions()
 
     def run(self) -> dd.DataFrame:
-
         # metabin the data and calculate metabin statistics
         metabinned_data = MetaBinner(self.config, self.data, self.total_interactions).bin_data()
 
@@ -31,17 +29,11 @@ class IntraStatsProcessor:
         # aggregate data to metabins
         binned_data_with_stats = binned_data_with_stats.groupby("metabin_label").agg({
             "unique_bins_in_metabin": "first",
-            "total_possible_pairs_within_metabin": "first",
+            "max_possible_pairs_within_metabin": "first",
             "metabin_total_contact_count": "first",
             "average_contact_probability": "first",
             "average_genomic_distance": "first"
         }).reset_index()
-
-        # sort data by average genomic distance
-        binned_data_with_stats = binned_data_with_stats.sort_values("average_genomic_distance")
-
-        # print binned sorted data
-        print(f"binned sorted data: {binned_data_with_stats.head(5)}")
 
         return binned_data_with_stats
 
@@ -52,6 +44,7 @@ class IntraStatsProcessor:
     def _calculate_total_interactions(self) -> int:
         total_interactions = TotalInteractionsCalculator(self.config, self.data).calculate_total_interactions()
         return total_interactions
+
 
 class MetaBinner:
 
@@ -68,13 +61,11 @@ class MetaBinner:
 
     @staticmethod
     def _assign_to_metabins(sorted_data: dd.DataFrame, total_interactions: int, number_of_equal_occupancy_bins: int) -> dd.DataFrame:
-
-        number_of_equal_occupancy_bins = number_of_equal_occupancy_bins-1
+        number_of_equal_occupancy_bins = number_of_equal_occupancy_bins - 1
 
         target_per_metabin = total_interactions // number_of_equal_occupancy_bins
         sorted_data["cumulative_count"] = sorted_data["interaction_count"].cumsum()
         sorted_data["metabin_label"] = (sorted_data["cumulative_count"] / target_per_metabin).astype("int")
-
 
         # Handle the tiebreak condition
         sorted_data = MetaBinner._apply_tiebreak_condition(sorted_data)
@@ -125,13 +116,11 @@ class MetabinStatistics:
 
         data = self._create_unique_bin_id(data)
         data = self._get_unique_bins_per_metabin(data)
-        data = self._possible_pairs_per_metabin(data)
-        data = self._possible_pairs_in_metabin_range(data)
+        data = self._possible_pairs_in_metabin(data)
         data = self._unique_bins_per_chromosome(data)
         data = self._sum_of_contact_counts(data)
         data = self._average_contact_probability(data)
         data = self._average_genomic_distance(data)
-
 
         return data
 
@@ -147,20 +136,22 @@ class MetabinStatistics:
         return data
 
     @staticmethod
-    def _possible_pairs_per_metabin(data: dd.DataFrame) -> dd.DataFrame:
-        # this is by definition the possible pairs found in the genomic range of each metabin
-        data["total_possible_pairs_within_metabin"] = (data["unique_bins_in_metabin"] * (data["unique_bins_in_metabin"] + 1)) // 2
+    def _get_min_max_midpoints_per_metabin(data: dd.DataFrame) -> dd.DataFrame:
+        data["max_midpoint_2_metabin"] = data.groupby("metabin_label")["midpoint_2"].transform("max")
+        data["min_midpoint_1_metabin"] = data.groupby("metabin_label")["midpoint_1"].transform("min")
         return data
 
-    def _possible_pairs_in_metabin_range(self, data: dd.DataFrame) -> dd.DataFrame:
-        # data["distance_range_in_metabin"] = data.groupby("metabin_label")["genomic_distance"].transform("max") - data.groupby("metabin_label")["genomic_distance"].transform("min")
-        data["max_midpoint_2_metabin"] = data.groupby("metabin_label")["midpoint_2"].transform("max").compute()
-        data["min_midpoint_1_metabin"] = data.groupby("metabin_label")["midpoint_1"].transform("min").compute()
-        data["distance_range_in_metabin"] = data["max_midpoint_2_metabin"] - data["min_midpoint_1_metabin"]
-        data["max_possible_pairs_within_metabin"] = (data["distance_range_in_metabin"] / self.resolution) * (data["distance_range_in_metabin"] / self.resolution + 1) / 2
-        print(f"Heads of data in possible_pairs_in_metabin_range: {data.head(5)}")
-        print(f"Tail of data in possible_pairs_in_metabin_range: {data.tail(5)}")
+    def _possible_pairs_in_metabin(self, data: dd.DataFrame) -> dd.DataFrame:
+        aggregations = {"midpoint_1": ["min"], "midpoint_2": ["max"]}
+        grouped_aggregations = data.groupby("metabin_label").agg(aggregations)
+        grouped_aggregations.columns = ["min_midpoint_1", "max_midpoint_2"]
 
+        if "metabin_label" not in grouped_aggregations.columns:
+            grouped_aggregations = grouped_aggregations.reset_index()
+
+        data = dd.merge(data, grouped_aggregations, on="metabin_label", how="left")
+        data["distance_range_in_metabin"] = data["max_midpoint_2"] - data["min_midpoint_1"]
+        data["max_possible_pairs_within_metabin"] = (data["distance_range_in_metabin"] / self.resolution) * (data["distance_range_in_metabin"] / self.resolution + 1) / 2
         return data
 
     def _unique_bins_per_chromosome(self, data: dd.DataFrame) -> dd.DataFrame:
@@ -181,5 +172,5 @@ class MetabinStatistics:
 
     def _average_genomic_distance(self, data: dd.DataFrame) -> dd.DataFrame:
         data["sum_distances"] = data.groupby("metabin_label")["genomic_distance"].transform("sum") / (self.distance_scaling_factor * data["unique_bins_per_chromosome"])
-        data["average_genomic_distance"] = self.distance_scaling_factor*(data["sum_distances"]/data["unique_bins_in_metabin"])
+        data["average_genomic_distance"] = self.distance_scaling_factor * (data["sum_distances"] / data["unique_bins_in_metabin"])
         return data

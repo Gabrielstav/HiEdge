@@ -10,7 +10,7 @@ run_name: "" # Name of the run, used for creating output dir with data. If empty
 
 paths:
   # Directories for input and output data (absolute paths)
-  input_dir: "/Users/GBS/hic_data/imr90/matrix/imr90"  # Directory containing HiC-Pro output files
+  input_dir: "/Users/GBS/hic_data/mcf10/matrix/mcf10"  # Directory containing HiC-Pro output files
   run_dir: "/Users/GBS/hiedge_testing/mcf10_tests"  # Output directory (named by run name) containing HiEdge results
   output_dir: ""
   temp_dir: = ""
@@ -46,6 +46,9 @@ pipeline_settings:
   select_chromosomes: [] # List of strings of chromosome(s) to include in filtering, all chromosomes not selected are omitted. Empty list means no specific chromosomes are selected.
   filter_self_interactions: True # If true, remove self-interacting bins (interactions between hic-contacts in the same bin)
 
+  # Make plots (visualize data)
+  make_plots: True  # If true, make plots for HiEdge results (spline fit, distance dependant decay, p-value distribution, q-value distribution, etc.)
+
   select_specific_regions: False
   select_regions:
     chr1:
@@ -78,7 +81,7 @@ pipeline_settings:
 statistical_settings:
   spline_passes: 2  # Number of spline passes
   fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values by Benjamini-Hochberg procedure
-  metabin_occupancy: 100  # Number of metabins to use for occupancy calculation (number of binds used in spline fit)
+  metabin_occupancy: 200  # Number of metabins to use for occupancy calculation (number of binds used in spline fit)
   use_hicpro_bias: False  # If true, use bias files from HiC-Pro for adjusting expected interaction frequencies before statistical testing. If false, no bias files are used.
   bias_lower_bound: 0.5  # Lower bound for bias values for filtering
   bias_upper_bound: 2  # Upper bound for bias values for filtering

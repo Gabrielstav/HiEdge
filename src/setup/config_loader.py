@@ -46,6 +46,10 @@ class Paths(BaseModel):
         return self.run_dir / "output"
 
     @property
+    def plot_dir(self):
+        return self.run_dir / "plots"
+
+    @property
     def log_dir(self):
         return self.run_dir / "logs"
 
@@ -68,6 +72,7 @@ class PipelineSettings:
     filter_self_interactions: bool
     remove_chromosomes: List[str]
     select_chromosomes: List[str]
+    make_plots: bool
     select_specific_regions: bool
     omit_specific_regions: bool
     use_interaction_distance_filters: bool
@@ -106,18 +111,6 @@ class StatisticalSettings(BaseModel):
     bias_lower_bound: float
     bias_upper_bound: float
     use_filtered_data_for_average_contact_probability: bool
-
-
-# class DaskSettings(BaseModel):
-#     chunksize: int
-#     work_stealing: bool
-#     default: str
-#     target: float
-#     spill: float
-#     pause: float
-#     terminate: float
-#     no_termination: bool
-
 
 class Config(BaseModel):
     version: float
