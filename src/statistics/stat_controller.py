@@ -51,8 +51,8 @@ class StatController:
 
     def _process_inter_stats(self):
         inter_stats = self._prepare_inter_data(self.data)
-        pvals = self._process_pvals_inter(inter_stats)
-        fdr = self._process_fdr_inter(pvals)
+        pvals = self._process_inter_pvals(inter_stats)
+        fdr = self._calculate_fdr_inter(pvals)
         return StatisticalOutput(metadata=self.metadata, data=fdr)
 
     def _filter_on_distances(self):
@@ -63,6 +63,7 @@ class StatController:
             return_data = filtered_data
         else:
             return_data = distances
+
         return return_data
 
     def _prepare_inter_data(self, inter_data):
@@ -81,11 +82,11 @@ class StatController:
     #     return spline_stats
 
     def _calculate_intra_pvals(self, spline, filtered_data):
-        pval_calculator = IntraPValueCalculator(filtered_data, spline, self.metadata, self.config)
+        pval_calculator = IntraPValueCalculator(filtered_data, spline, self.metadata, self.config, self.metadata.unique_bins_per_chromosome)
         pvals = pval_calculator.run()
         return pvals
 
-    def _process_pvals_inter(self, pval_input):
+    def _process_inter_pvals(self, pval_input):
         pval_calculator = InterPValueCalculator(pval_input, self.config, self.metadata, self.metadata.max_possible_interaction_count_inter)
         pvals = pval_calculator.run()
         return pvals
@@ -95,7 +96,7 @@ class StatController:
         fdr = fdr_calculator.run()
         return fdr
 
-    def _process_fdr_inter(self, pvals):
+    def _calculate_fdr_inter(self, pvals):
         fdr_calculator = FDRCalculator(pvals, self.config)
         fdr = fdr_calculator.run()
         return fdr

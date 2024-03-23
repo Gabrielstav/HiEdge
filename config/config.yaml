@@ -10,7 +10,7 @@ run_name: "" # Name of the run, used for creating output dir with data. If empty
 
 paths:
   # Directories for input and output data (absolute paths)
-  input_dir: "/Users/GBS/hic_data/mcf10/matrix/mcf10"  # Directory containing HiC-Pro output files
+  input_dir: "/Users/GBS/hic_data/imr90/matrix/imr90"  # Directory containing HiC-Pro output files
   run_dir: "/Users/GBS/hiedge_testing/mcf10_tests"  # Output directory (named by run name) containing HiEdge results
   output_dir: ""
   temp_dir: = ""
@@ -44,7 +44,7 @@ pipeline_settings:
   filter_cytobands: True  # If true, filter out interactions in cytoband regions (cytobands file path)
   remove_chromosomes: ["chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from filtering. Empty list means no chromosomes are selected.
   select_chromosomes: [] # List of strings of chromosome(s) to include in filtering, all chromosomes not selected are omitted. Empty list means no specific chromosomes are selected.
-  filter_self_interactions: True # If true, remove self-interacting bins (interactions between hic-contacts in the same bin)
+  filter_self_interactions: False # If true, remove self-interacting bins (interactions between hic-contacts in the same bin)
 
   # Make plots (visualize data)
   make_plots: False  # If true, make plots for HiEdge results (spline fit, distance dependant decay, p-value distribution, q-value distribution, etc.)
@@ -68,8 +68,8 @@ pipeline_settings:
   use_interaction_distance_filters: False  # If true, filter out interactions based on distance
   interaction_distance_filters:
     1000000:
-      min_distance: 1000000  # Minimum distance for interactions to be considered
-      max_distance: 100000000  # Maximum distance for interactions to be considered
+      min_distance: 5000000  # Minimum distance for interactions to be considered
+      max_distance: 90000000  # Maximum distance for interactions to be considered
     500000:
       min_distance: 1000000  # Minimum distance for interactions to be considered
       max_distance: 5000000  # Maximum distance for interactions to be considered
@@ -86,18 +86,3 @@ statistical_settings:
   bias_lower_bound: 0.5  # Lower bound for bias values for filtering
   bias_upper_bound: 2  # Upper bound for bias values for filtering
   use_filtered_data_for_average_contact_probability: False # If true, use filtered data for average contact probability calculation used in spline fitting. If false, use raw (unfiltered) data.
-
-
-
-#dask_settings:
-#  # Dataframe
-#  chunksize: 50000  # Default chunk size for dataframes
-#  # Scheduler
-#  work_stealing: True
-#  default: "threads"  # or 'processes' or 'distributed'
-#  # Memory
-#  target: 0.9  # fraction of memory to try to stay beneath
-#  spill: 0.95  # fraction at which we start spilling to disk
-#  pause: 0.98  # fraction at which we halt computation and warn
-#  terminate: 1.0  # fraction at which we kill the worker
-#  no_termination: True

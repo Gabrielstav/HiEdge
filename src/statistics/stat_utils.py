@@ -2,6 +2,7 @@
 
 # Import modules
 import dask.dataframe as dd
+import pandas as pd
 from src.setup.config_loader import Config
 
 class MidpointCalculator:

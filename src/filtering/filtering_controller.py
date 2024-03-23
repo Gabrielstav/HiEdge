@@ -27,18 +27,18 @@ class FilteringController:
         splitter = SplitByInteractionType(self.data)
         intra_df, inter_df = splitter.split_datasets_by_interaction_type()
 
-        # Instantiate metadata and output for intra and inter data
+        # Instantiate metadata and output
         intra_metadata = self._instantiate_metadata("intra")
         inter_metadata = self._instantiate_metadata("inter")
         intra_output = FilteringOutput(data=intra_df, metadata=intra_metadata)
         inter_output = FilteringOutput(data=inter_df, metadata=inter_metadata)
 
-        # Filter outputs based on interaction_type specified in the config
+        # Filter outputs based on interaction_type
         outputs = [intra_output, inter_output]
         if self.config.pipeline_settings.interaction_type != "mixed":
             outputs = [output for output in outputs if output.metadata.interaction_type == self.config.pipeline_settings.interaction_type]
 
-        # Apply filters and return the filtered outputs
+        # Apply filters
         for output in outputs:
             self._apply_filters(output)
 
