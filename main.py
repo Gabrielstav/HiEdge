@@ -9,11 +9,12 @@ from src.setup.config_loader import InstantiateConfig
 from src.data_preparation.preparation_controller import DataPreparationController
 from src.filtering.filtering_controller import FilteringController
 from src.statistics.stat_controller import StatController
-from src.output.output_formatter import OutputConfigurator
+from src.output.output_formatter import OutputConfiguratorRunner
 from pathlib import Path
 from dask import compute
 from dask.delayed import delayed
 from typing import List
+from time import time
 
 
 class Pipeline:
@@ -23,6 +24,9 @@ class Pipeline:
         self.config = self._load_config()
 
     def run(self):
+
+        # start time of the pipeline
+        start_time = time()
 
         # Set up the run directory and instantiate config
         setup_tool = RunDirectorySetup(config=self.config, config_path=self.config_path)
@@ -46,8 +50,11 @@ class Pipeline:
         print(f"Doing statistical modeling: {statistical_output}")
 
         # Configure and write output
-        self._execute_in_parallel(statistical_output, OutputConfigurator)
+        self._execute_in_parallel(statistical_output, OutputConfiguratorRunner)
         print(f"Writing output!")
+
+        # print time taken to run the pipeline
+        print(f"Time taken to run the pipeline: {time() - start_time} seconds.")
 
     def _execute_in_parallel(self, inputs, controller_class) -> List:
         # Ensure inputs is a list for uniform processing
@@ -77,6 +84,7 @@ class Pipeline:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the pipeline with the specified configuration.")
     parser.add_argument("--config", "-con", "-c", type=Path, required=True, help="Path to the configuration YAML file.")
+    parser.add_argument("--run_name", "-r", type=str, required=False, help="Name of the run.")
     args = parser.parse_args()
 
     pipeline = Pipeline(args.config)

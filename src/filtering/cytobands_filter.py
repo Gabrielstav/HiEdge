@@ -35,3 +35,8 @@ class RemoveCytobandRegions:
         if not isinstance(filtered_partitions, dd.DataFrame):
             print("Filtered partitions are not a dask dataframe!")
         return filtered_partitions
+
+
+class RemoveCytobandRegionsDask:
+    # TODO: Implement filtering logic in Dask, make seris of cytoband regions and filter on each partition using overlap or midpoints in region
+    pass

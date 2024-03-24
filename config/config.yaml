@@ -6,11 +6,11 @@
 
 version: 1.0
 
-run_name: "" # Name of the run, used for creating output dir with data. If empty, the run dirname will be the timestamp.
+run_name: "huvec_250kb" # Name of the run, used for creating output dir with data. If empty, the run dirname will be the timestamp.
 
 paths:
   # Directories for input and output data (absolute paths)
-  input_dir: "/Users/GBS/hic_data/imr90/matrix/imr90"  # Directory containing HiC-Pro output files
+  input_dir: "/Users/GBS/hic_data/huvec/matrix/huvec"  # Directory containing HiC-Pro output files
   run_dir: "/Users/GBS/hiedge_testing/mcf10_tests"  # Output directory (named by run name) containing HiEdge results
   output_dir: ""
   temp_dir: = ""
@@ -32,11 +32,18 @@ pipeline_settings:
   hicpro_raw_dirname: "raw" # Directory containing raw HiC-Pro matrix output (dafault name by hicpro is always: raw)
   hicpro_norm_dirname: "iced" # Directory containing balanced HiC-Pro matrix output and bias matrices (dafault name by hicpro is always: iced)
 
+  # Output format for HiEdge results (csv, hdf5, parquet, text)
+  output_type: "default" # Output type for HiEdge results (default, verbose, qval)
+  output_format: "csv"  # Output format for HiEdge results (csv, hdf5, parquet, txt)
+
+  # Make plots (visualize data)
+  make_plots: True  # If true, make plots for HiEdge results (spline fit, distance dependant decay, p-value distribution, q-value distribution, etc.)
+
   # Execution settings
   interaction_type: "intra"  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
   iced_data: False  # If set to true, use balanced matrix files by iterative correction (ic) from Hi-C Pro (iced matrices) instead of raw matrix files (not recommended, statistical model assumes raw matrices)
   round_iced_matrices: False  # If true, round iced matrices to integer values.
-  intra_resolutions: [1000000]  # Resolution in base pairs for intrachromosomal data to be processed (if empty, process all resolutions for which data is available)
+  intra_resolutions: [250000]  # Resolution in base pairs for intrachromosomal data to be processed (if empty, process all resolutions for which data is available)
   inter_resolutions: [1000000]  # Resolutions in base pairs to consider for interchromosomal data (if empty, process all resolutions for which data is available)
 
   # Filtering settings
@@ -44,10 +51,7 @@ pipeline_settings:
   filter_cytobands: True  # If true, filter out interactions in cytoband regions (cytobands file path)
   remove_chromosomes: ["chrM", "chrY", "chrX"] # List of strings of chromosomes to be omitted from filtering. Empty list means no chromosomes are selected.
   select_chromosomes: [] # List of strings of chromosome(s) to include in filtering, all chromosomes not selected are omitted. Empty list means no specific chromosomes are selected.
-  filter_self_interactions: False # If true, remove self-interacting bins (interactions between hic-contacts in the same bin)
-
-  # Make plots (visualize data)
-  make_plots: False  # If true, make plots for HiEdge results (spline fit, distance dependant decay, p-value distribution, q-value distribution, etc.)
+  filter_self_interactions: True # If true, remove self-interacting bins (interactions between hic-contacts in the same bin)
 
   select_specific_regions: False
   select_regions:
@@ -69,20 +73,17 @@ pipeline_settings:
   interaction_distance_filters:
     1000000:
       min_distance: 5000000  # Minimum distance for interactions to be considered
-      max_distance: 90000000  # Maximum distance for interactions to be considered
+      max_distance: 9000000  # Maximum distance for interactions to be considered
     500000:
       min_distance: 1000000  # Minimum distance for interactions to be considered
       max_distance: 5000000  # Maximum distance for interactions to be considered
-
-  # Output settings
-  output_format: "csv"  # Output format for HiEdge results (csv, hdf5, parquet, text)
-
 
 statistical_settings:
   spline_passes: 2  # Number of spline passes
   fdr_threshold: 0.05   # False Discovery Rate threshold for adjusting p-values by Benjamini-Hochberg procedure
   metabin_occupancy: 200  # Number of metabins to use for occupancy calculation (number of binds used in spline fit)
-  use_hicpro_bias: False  # If true, use bias files from HiC-Pro for adjusting expected interaction frequencies before statistical testing. If false, no bias files are used.
+  use_hicpro_bias: True  # If true, use bias files from HiC-Pro for adjusting expected interaction frequencies before statistical testing. If false, no bias files are used.
   bias_lower_bound: 0.5  # Lower bound for bias values for filtering
   bias_upper_bound: 2  # Upper bound for bias values for filtering
   use_filtered_data_for_average_contact_probability: False # If true, use filtered data for average contact probability calculation used in spline fitting. If false, use raw (unfiltered) data.
+  use_sequential_fdr: True  # If true, use sequential FDR correction for multiple testing. If false, use partition-based FDR correction.

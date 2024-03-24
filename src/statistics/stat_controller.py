@@ -10,6 +10,7 @@ from src.statistics.pvals import IntraPValueCalculator, InterPValueCalculator
 from src.statistics.fdr import FDRCalculator
 from src.setup.config_loader import Config
 from src.plots.spline_plots import SplinePlotter, DistanceDecayPlotter
+from src.plots.statistics_plots import PValuePlotter
 
 
 # TODO: After q-vals, determine outliers and re-run spline fitting based on num-pass from config with outliers removed (basically just re-run this moethod with outliers removed)
@@ -46,7 +47,13 @@ class StatController:
             SplinePlotter(spline, metadata=self.metadata, config=self.config).plot_probability_distribution()
 
         pvals = self._calculate_intra_pvals(spline, filtered_data)
+        if self.config.pipeline_settings.make_plots:
+            PValuePlotter(pvals, metadata=self.metadata, config=self.config).plot_pvalues_vs_distance()
+            PValuePlotter(pvals, metadata=self.metadata, config=self.config).plot_pvalue_distribution()
+
         fdr = self._calculate_fdr_intra(pvals)
+        if self.config.pipeline_settings.make_plots:
+            PValuePlotter(fdr, metadata=self.metadata, config=self.config).plot_qvalue_distribution()
         return StatisticalOutput(metadata=self.metadata, data=fdr)
 
     def _process_inter_stats(self):
@@ -92,7 +99,7 @@ class StatController:
         return pvals
 
     def _calculate_fdr_intra(self, pvals):
-        fdr_calculator = FDRCalculator(pvals, self.config)
+        fdr_calculator = FDRCalculator(pvals, self.config, self.metadata)
         fdr = fdr_calculator.run()
         return fdr
 

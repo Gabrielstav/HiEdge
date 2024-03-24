@@ -24,7 +24,7 @@ class RemoveBlacklistedRegions:
     def filter_single_partition(self, partition: pd.DataFrame, resolution) -> pd.DataFrame:
         pbt_partition = pbt.BedTool.from_dataframe(partition)
         filtered_partition = pbt_partition.window(self.blacklisted_regions, r=False, v=True, w=resolution)
-        filtered_partition_df = filtered_partition.to_dataframe(names=["chr_1", "start_1", "end_1", "chr_2", "start_2", "end_2", "interaction_count", "idx_1", "idx_2", "bias_1", "bias_2"])
+        filtered_partition_df = filtered_partition.to_dataframe(names=["chr_1", "start_1", "end_1", "chr_2", "start_2", "end_2", "interaction_count", "idx_1", "idx_2", "bias_1", "bias_2"], engine="python")
         return filtered_partition_df
 
     def filter_blacklist(self, bedpe_data: Union[dd.DataFrame, pd.DataFrame], resolution) -> dd.DataFrame:
@@ -38,3 +38,7 @@ class RemoveBlacklistedRegions:
         print(filtered_partitions.compute().head())
 
         return filtered_partitions
+
+class RemoveBlacklistedRegionsDask:
+    # TODO: Implement filtering logic in Dask, make seris of blacklisted regions and filter on each partition using overlap or midpoints in region
+    pass

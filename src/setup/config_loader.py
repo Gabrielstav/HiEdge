@@ -21,19 +21,15 @@ class InteractionDistanceFilter(BaseModel):
     min_distance: int
     max_distance: int
 
-
 class Version(BaseModel):
     version: float
-
 
 class RunName(BaseModel):
     run_name: str
 
-
 class ReferencePaths(BaseModel):
     blacklist_dir: Optional[Path] = None
     cytoband_dir: Optional[Path] = None
-
 
 class Paths(BaseModel):
     input_dir: Path
@@ -78,6 +74,7 @@ class PipelineSettings:
     use_interaction_distance_filters: bool
     interaction_distance_filters: Dict[int, InteractionDistanceFilter]
     output_format: str
+    output_type : str
     select_regions: Optional[Dict[str, List[str]]] = None
     omit_regions: Optional[Dict[str, List[str]]] = None
 
@@ -102,7 +99,6 @@ class PipelineSettings:
                 raise ValueError(f"Keys in interaction_distance_filters must be integers, got {type(k).__name__}")
             parsed[k] = val
 
-
 class StatisticalSettings(BaseModel):
     spline_passes: int
     fdr_threshold: float
@@ -111,6 +107,8 @@ class StatisticalSettings(BaseModel):
     bias_lower_bound: float
     bias_upper_bound: float
     use_filtered_data_for_average_contact_probability: bool
+    use_sequential_fdr: bool
+
 
 class Config(BaseModel):
     version: float
@@ -118,8 +116,6 @@ class Config(BaseModel):
     paths: Paths
     pipeline_settings: PipelineSettings
     statistical_settings: StatisticalSettings
-    # dask_settings: DaskSettings
-
 
 class InstantiateConfig:
     def __init__(self, config_path: Path):

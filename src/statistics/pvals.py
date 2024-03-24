@@ -29,18 +29,20 @@ class IntraPValueCalculator:
             print("Data is not a Dask DataFrame, converting.")
             self.data = dd.from_pandas(self.data, npartitions=1)
 
-        self.data = self.data.set_index("chr_1", sorted=True)
+        self.data = self.data.set_index("chr_1", sorted=True, drop=False)
         # self._interaction_count_per_chromosome()
         self._total_count()
         self._calculate_expected_frequency()
         self._calculate_p_values()
-        self._plot_p_values_vs_distance()
+        # self._plot_p_values_vs_distance()
         print(f"Tail of data after p-values: {self.data.head(30)}")
         return self.data
 
     def _calculate_p_values(self):
         # Instead of direct assignment, use apply to calculate p-values row-wise
         self.data["p_value"] = self.data.apply(self._calculate_p_value, axis=1, meta=("p_value", float))
+        # TODO: Check expected frequency, bias, interaction count, total interactions and adjusted expected frequency
+
         # number of successes, number of trials, and success probability in each trial
         # so for each row, the number of successes is the interaction count, the number of trials is the total interactions, and the success probability is the expected frequency
         # it's the y prob from the spline for a given distance, but something is wrong with this calculation since p-vals are too small...
@@ -78,20 +80,9 @@ class IntraPValueCalculator:
         self.data["total_interactions"] = total_interactions
         return self.data
 
-    def _plot_p_values_vs_distance(self):
-        # Ensure the DataFrame is computed; consider using .compute() carefully if the dataset is large
-        # You might want to sample the data instead if it's very large
-        sample_data = self.data.sample(frac=1).compute() if isinstance(self.data, dd.DataFrame) else self.data
 
-        plt.figure(figsize=(10, 6))
-        plt.scatter(sample_data["genomic_distance"], sample_data["p_value"], alpha=0.5)
-        plt.title('P-Values vs Genomic Distance')
-        plt.xlabel('Genomic Distance')
-        plt.ylabel('P-Value')
-        plt.xscale('log')
-        plt.yscale('log')
-        plt.grid(True, which="both", ls="--")
-        plt.show()
+
+
 
 class PlaceHolder:
     def _unique_bins_per_chromosome(self) -> dd.DataFrame:

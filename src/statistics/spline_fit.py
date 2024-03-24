@@ -29,10 +29,13 @@ class SplineFitter:
 
     def _fit_initial_spline(self):
         initial_spline = UnivariateSpline(self.x, self.y, s=self.spline_error)
+        print(f"INITIAL X: {self.x}")
+        print(f"INITIAL Y: {self.y}")
         self._initial_spline = initial_spline
 
     def _enforce_monotonicity(self):
         y_mono = IsotonicRegression(increasing=False, y_min=min(self.y), y_max=max(self.y)).fit_transform(self.x, self._initial_spline(self.x))
+        print(f"MONO Y: {y_mono}")
         adjusted_spline = UnivariateSpline(self.x, y_mono, s=self.spline_error)
         self.mono_spline = adjusted_spline
 

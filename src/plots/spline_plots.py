@@ -12,7 +12,6 @@ class SplinePlotter:
         self.metadata = metadata
         self.spline_fitter = spline_fitter
 
-
     def plot_spline_fit(self):
         x = self.spline_fitter.x
         y = self.spline_fitter.y
@@ -26,7 +25,6 @@ class SplinePlotter:
         plt.ylabel("Probability")
         plt.legend()
         plt.savefig(self.config.paths.plot_dir / f"{self.metadata.experiment}_{self.metadata.resolution}_spline_fit.png")
-        plt.show()
 
     def plot_spline_fit_with_error(self):
         pass
@@ -42,7 +40,6 @@ class SplinePlotter:
         plt.xlabel("Genomic Distance")
         plt.ylabel("Frequency")
         plt.savefig(self.config.paths.plot_dir / f"{self.metadata.experiment}_{self.metadata.resolution}_distance_distribution.png")
-        plt.show()
 
     def plot_probability_distribution(self):
         y = self.spline_fitter.y
@@ -52,7 +49,6 @@ class SplinePlotter:
         plt.xlabel("Probability")
         plt.ylabel("Frequency")
         plt.savefig(self.config.paths.plot_dir / f"{self.metadata.experiment}_{self.metadata.resolution}_probability_distribution.png")
-        plt.show()
 
 
 class DistanceDecayPlotter:
@@ -72,4 +68,3 @@ class DistanceDecayPlotter:
         plt.ylabel("Contact Count")
         plt.scatter(x, y, alpha=0.5)
         plt.savefig(self.config.paths.plot_dir / f"{self.metadata.experiment}_{self.metadata.resolution}_distance_decay.png")
-        plt.show()
