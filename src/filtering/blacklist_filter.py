@@ -40,5 +40,5 @@ class RemoveBlacklistedRegions:
         return filtered_partitions
 
 class RemoveBlacklistedRegionsDask:
-    # TODO: Implement filtering logic in Dask, make seris of blacklisted regions and filter on each partition using overlap or midpoints in region
+    # TODO: Implement filtering logic in Dask, make series of blacklisted regions and filter on each partition using overlap or midpoints in region
     pass
