@@ -7,6 +7,6 @@ HiEdge is a pipeline used to generate networks in edge list format from Hi-C Pro
 
 HiEdge is a Hi-C pipeline used to easily and automatically process output data from Hi-C Pro to significant interactions. All you need to do it provide the input directory containing the Hi-C data, and the pipeline does the rest.
 
-![1720685919072](image/README/1720685919072.png)
+![1720685919072](HiEdge_fig.png)
 
 ### Installation
