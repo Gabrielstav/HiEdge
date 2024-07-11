@@ -214,6 +214,6 @@ my understanding of the underlying principles. One such pipeline is the [FitHiC2
 
 This project was developed during my free time, and I have not had the opportunity to test it on a wide range of datasets or resolutions.
 If you intend to use this pipeline in your research, please do so at your own risk, but I would be happy to help you with any issues or questions you might have.
-As this project is licenced under the APA 2.0 license, you are free to use and modify the code as you see fit. 
+As this project is open-source (licenced under the APACHE 2.0 license - see licence.txt), you are free to use and modify the code as you see fit. 
 If you have any questions or feedback, feel free to open an issue in the repository. 
 
