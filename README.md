@@ -209,11 +209,11 @@ statistical_settings:
 
 This pipeline has been a fun side-project and was intended as a learning experience in software development and bioinformatics.
 As I am not a statistician I have had to rely on established methods and pipelines for the statistical processing part of the pipeline but trying to write the code from scratch and improve 
-my understanding of the underlying principles. One such pipeline is the ![FitHiC2 pipeline](https://github.com/ay-lab/fithic) by the Ay lab at the University of California, Irvine and the ![Chrom3D pipeline](https://github.com/Chrom3D)
- by the Paulsen group at UiO in Norway.
+my understanding of the underlying principles. One such pipeline is the ![FitHiC2 pipeline](https://github.com/ay-lab/fithic) by the Ay lab at the La Jolla Institute for Immunology, CA and the ![Chrom3D pipeline](https://github.com/Chrom3D)
+ by the Paulsen group at the University of Oslo, Norway.
 
 This project was developed during my free time, and I have not had the opportunity to test it on a wide range of datasets or resolutions.
-If you intend to use this pipeline in your research, please do so at your own risk, and make sure to cite the HiEdge repository. 
+If you intend to use this pipeline in your research, please do so at your own risk, but I would be happy to help you with any issues or questions you might have.
 As this project is licenced under the APA 2.0 license, you are free to use and modify the code as you see fit. 
-If you have any questions or feedback, feel free to reach out to me and just open an issue on the repository. 
+If you have any questions or feedback, feel free to open an issue in the repository. 
 
