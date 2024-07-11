@@ -215,5 +215,5 @@ my understanding of the underlying principles. One such pipeline is the ![FitHiC
 This project was developed during my free time, and I have not had the opportunity to test it on a wide range of datasets or resolutions.
 If you intend to use this pipeline in your research, please do so at your own risk, and make sure to cite the HiEdge repository. 
 As this project is licenced under the APA 2.0 license, you are free to use and modify the code as you see fit. 
-If you have any questions or feedback, feel free to reach out to me at: gabrielstav@yahoo.no or just open an issue on the repository. 
+If you have any questions or feedback, feel free to reach out to me and just open an issue on the repository. 
 
