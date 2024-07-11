@@ -209,7 +209,7 @@ statistical_settings:
 
 This pipeline has been a fun side-project and was intended as a learning experience in software development and bioinformatics.
 As I am not a statistician I have had to rely on established methods and pipelines for the statistical processing part of the pipeline but trying to write the code from scratch and improve 
-my understanding of the underlying principles. One such pipeline is the ![FitHiC2 pipeline](https://github.com/ay-lab/fithic) by the Ay lab at the La Jolla Institute for Immunology, CA and the ![Chrom3D pipeline](https://github.com/Chrom3D)
+my understanding of the underlying principles. One such pipeline is the [FitHiC2 pipeline](https://github.com/ay-lab/fithic) by the Ay lab at the La Jolla Institute for Immunology, CA and the [Chrom3D pipeline](https://github.com/Chrom3D)
  by the Paulsen group at the University of Oslo, Norway.
 
 This project was developed during my free time, and I have not had the opportunity to test it on a wide range of datasets or resolutions.
