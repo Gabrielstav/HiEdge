@@ -6,11 +6,11 @@
 
 version: 1.0
 
-run_name: "huvec_250kb" # Name of the run, used for creating output dir with data. If empty, the run dirname will be the timestamp.
+run_name: "testing_2" # Name of the run, used for creating output dir with data. If empty, the run dirname will be the timestamp.
 
 paths:
   # Directories for input and output data (absolute paths)
-  input_dir: "/Users/GBS/hic_data/huvec/matrix/huvec"  # Directory containing HiC-Pro output files
+  input_dir: "/Users/GBS/hic_data/MCF7_rep1_GSM409707/matrix/MCF7_rep1_GSM409707"  # Directory containing HiC-Pro output files
   run_dir: "/Users/GBS/hiedge_testing/mcf10_tests"  # Output directory (named by run name) containing HiEdge results
   output_dir: ""
   temp_dir: = ""
@@ -43,7 +43,7 @@ pipeline_settings:
   interaction_type: "intra"  # Type of interactions to consider (inter, intra, mixed). Mixed will process all interactions, but will perform separate statistical testing for inter and intra interactions.
   iced_data: False  # If set to true, use balanced matrix files by iterative correction (ic) from Hi-C Pro (iced matrices) instead of raw matrix files (not recommended, statistical model assumes raw matrices)
   round_iced_matrices: False  # If true, round iced matrices to integer values.
-  intra_resolutions: [250000]  # Resolution in base pairs for intrachromosomal data to be processed (if empty, process all resolutions for which data is available)
+  intra_resolutions: [1000000]  # Resolution in base pairs for intrachromosomal data to be processed (if empty, process all resolutions for which data is available)
   inter_resolutions: [1000000]  # Resolutions in base pairs to consider for interchromosomal data (if empty, process all resolutions for which data is available)
 
   # Filtering settings
