@@ -240,4 +240,3 @@ If you use HiEdge in your research, please consider citing it:
 
 ```
 [![DOI](https://zenodo.org/badge/673445399.svg)](https://zenodo.org/doi/10.5281/zenodo.13357275)
-```
