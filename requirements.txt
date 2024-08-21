@@ -1,6 +1,6 @@
 dask==2024.1.1
 matplotlib==3.8.2
-numpy==2.0.0
+numpy<=2.0
 pandas==2.2.2
 pandera==0.18.0
 pybedtools==0.9.1
