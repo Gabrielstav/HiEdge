@@ -91,14 +91,15 @@ class FileFinder:
     def _filter_files_on_resolution(self, input_files: Iterable[Path], found_resolutions=None) -> Tuple[List[Path], Set[int]]:
         """
         Filters input files based on their resolution.
-
         :returns: Tuple of filtered Paths and the set of found resolutions.
         """
         if found_resolutions is None:
             found_resolutions = set()
         filtered_files: List[Path] = []
         for file_path in input_files:
-            resolution_match = re.search(r"_(\d+)[_.]", file_path.name)
+            filename = file_path.name
+            # Updated regex to handle multiple extensions and text after the resolution
+            resolution_match = re.search(r"_(\d+)(?=\D*$)", filename)
             if resolution_match:
                 resolution = int(resolution_match.group(1))
                 print(f"Found resolution: {resolution} for file: {file_path}")
@@ -127,14 +128,19 @@ class HicProFileGrouper:
 
         def extract_metadata_from_file(file: Path) -> Tuple[str, int]:
             """
-            Extracts the experiment and resolution from a given file based on its name and path.
+            Extracts the experiment name and resolution from a given file based on its name.
             """
-            if self.config.pipeline_settings.iced_data:
-                exp_name, res_value, _ = file.stem.rsplit("_", 2)
-                res_value = int(res_value)
-            else:
-                exp_name = file.parents[2].name
-                res_value = int(file.stem.rsplit("_", 2)[1])
+            # Define a regex pattern to match the experiment name and resolution
+            pattern = r"(.+?)_(\d+)(?=\D*$)"  # This captures the experiment name before the last underscore + digits pattern
+            match = re.match(pattern, file.stem)
+            
+            if not match:
+                raise ValueError(f"Unable to extract experiment name and resolution from file: {file.name}")
+            
+            exp_name = match.group(1)  # Experiment name is the first group captured by the regex
+            res_value = int(match.group(2))  # Resolution is the second group captured by the regex
+
+            print(f"Experiment name: {exp_name}, Resolution: {res_value}")
             return exp_name, res_value
 
         grouped_files = []
