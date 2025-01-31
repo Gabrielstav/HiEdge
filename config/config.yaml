@@ -1,25 +1,25 @@
 # Copyright Gabriel B. Stav. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 
 # HiEdge config file.
-# Date: [Creation/Last Modified Date]
+# Date: [31-01-2025]
 # Purpose: Configuration settings for processing HiC data.
 
 version: 1.0
 
-run_name: "testing_2" # Name of the run, used for creating output dir with data. If empty, the run dirname will be the timestamp.
+run_name: "testing_intra" # Name of the run, used for creating output dir with data. If empty, the run dirname will be the timestamp.
 
 paths:
   # Directories for input and output data (absolute paths)
-  input_dir: "/Users/GBS/hic_data/MCF7_rep1_GSM409707/matrix/MCF7_rep1_GSM409707"  # Directory containing HiC-Pro output files
-  run_dir: "/Users/GBS/hiedge_testing/mcf10_tests"  # Output directory (named by run name) containing HiEdge results
-  output_dir: ""
-  temp_dir: = ""
+  input_dir: "test_dataset/imr90"  # Directory containing HiC-Pro output files
+  run_dir: "test_data"  # Root output dir name containing all HiEdge results
+  output_dir: "" # Name of output file dir (default is output)
+  temp_dir: = "" # Name of tmp dir (default is tmp)
 
 
   # Reference data files, set as empty string if not used. These files are used for filtering out blacklisted and cytoband regions.
   hg19:
-    blacklist_dir: "/Users/GBS/PythonProjects/HiEdge/reference/hg19-blacklist.v2.bed"
-    cytoband_dir: "/Users/GBS/PythonProjects/HiEdge/reference/cytoBand_hg19.txt"
+    blacklist_dir: "reference_data/hg19-blacklist.v2.bed"
+    cytoband_dir: "reference_data/cytoBand.txt"
   hg38:
     blacklist_dir: ""
     cytoband_dir: ""

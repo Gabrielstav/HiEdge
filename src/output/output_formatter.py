@@ -71,15 +71,14 @@ class OutputConfigurator:
             print(f"Output dataframe is not a Dask dataframe: {type(df)}")
 
         if output_format == "csv":
-            df.to_csv(file_path)
+            df.to_csv(file_path, index=False)  # Added index=False here
         elif output_format == "parquet":
             df.to_parquet(file_path)
         elif output_format == "hdf5":
             # HDF5 writing needs special handling for Dask
-            df.compute().to_hdf(file_path.hdf5, key="data", mode="w")
-        else:
-            df.to_csv(file_path, sep="\t", header=False, index=False)
-
+            df.compute().to_hdf(file_path, key="data", mode="w")
+        else:  # txt format
+            df.to_csv(file_path, sep="\t", header=True, index=False)
 
         print(f"Output file {file_name} written to {file_path}")
 

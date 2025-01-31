@@ -33,6 +33,7 @@ class SplineFitter:
         print(f"INITIAL Y: {self.y}")
         self._initial_spline = initial_spline
 
+    # TODO: Fix NaN when cycles are enabled in config (input is 0 for self-interacting bins)
     def _enforce_monotonicity(self):
         y_mono = IsotonicRegression(increasing=False, y_min=min(self.y), y_max=max(self.y)).fit_transform(self.x, self._initial_spline(self.x))
         print(f"MONO Y: {y_mono}")

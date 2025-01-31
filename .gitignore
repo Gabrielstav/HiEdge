@@ -4,9 +4,7 @@ venv
 env
 .run
 .DS_STORE
-data 
-output
-.pyc 
+.pyc
 .vscode
 .data
 .test_data
@@ -16,3 +14,4 @@ __pycache__
 activate
 data
 .output
+test_data

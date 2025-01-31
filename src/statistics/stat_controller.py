@@ -94,7 +94,8 @@ class StatController:
         return pvals
 
     def _process_inter_pvals(self, pval_input):
-        pval_calculator = InterPValueCalculator(pval_input, self.config, self.metadata, self.metadata.max_possible_interaction_count_inter)
+        pval_calculator = InterPValueCalculator(pval_input, self.config, self.metadata, self.metadata.max_possible_interacting_bins_inter)
+        # TODO: Changing this to max_possible_interacting_bins_inter from self.metadata.max_possible_interaction_count_inter
         pvals = pval_calculator.run()
         return pvals
 
@@ -104,6 +105,6 @@ class StatController:
         return fdr
 
     def _calculate_fdr_inter(self, pvals):
-        fdr_calculator = FDRCalculator(pvals, self.config)
+        fdr_calculator = FDRCalculator(pvals, self.config, self.metadata)
         fdr = fdr_calculator.run()
         return fdr

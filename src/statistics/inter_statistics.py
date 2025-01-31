@@ -2,6 +2,7 @@
 
 # Import modules
 from src.setup.config_loader import Config
+from src.data_preparation.interaction_calculator import PossiblePairsCalculator
 import dask.dataframe as dd
 
 
@@ -16,22 +17,29 @@ class DataPreparationController:
         return inter_stats
 
 class InterStatisticsCalculator:
-
     def __init__(self, data: dd.DataFrame, config: Config):
         self.data = data
         self.config = config
 
-    def compute_inter_stats(self) -> int:
+        # Ensure data is Dask DataFrame
+        if not isinstance(self.data, dd.DataFrame):
+            self.data = dd.from_pandas(self.data, npartitions=1)
+
+    def compute_inter_stats(self) -> dd.DataFrame:
         # Filter for interchromosomal interactions
         inter_data = self.data[self.data["chr_1"] != self.data["chr_2"]]
 
-        # Count all interactions and compute interaction probability, add as column in data (or as metadata?)
-        interdata_count = len(inter_data.index)
-        self.data["interdata_count"] = self.calculate_interaction_probabilities(interdata_count)
+        # Calculate total observed interactions
+        total_observed_count = len(inter_data)  # number of interacting pairs
+        total_observed_sum = inter_data["interaction_count"].sum()  # sum of all interactions
 
-        return interdata_count
+        # Calculate probability (using their method)
+        inter_probability = 1.0 / total_observed_count if total_observed_count > 0 else 0
 
-    @staticmethod
-    def calculate_interaction_probabilities(interdata_count) -> float:
-        inter_probability = 1 / interdata_count
-        return inter_probability
+        # Add these as properties of the DataFrame
+        inter_data = inter_data.assign(
+            interChrProb=inter_probability,
+            totalObservedSum=total_observed_sum
+        )
+
+        return inter_data

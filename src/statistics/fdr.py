@@ -26,14 +26,23 @@ class FDRCalculator:
             return self._sequential_fdr()
 
     def _partition_based_fdr(self, num_partitions: int) -> dd.DataFrame:
-        data_partitioned = self.data.map_partitions(
-            lambda df: pd.qcut(df[self.p_value_column].rank(method="first"), num_partitions, labels=False),
+        # Create a copy of the data to add partition column
+        data_with_partition = self.data.copy()
+
+        # Add partition column
+        data_with_partition["partition"] = data_with_partition.map_partitions(
+            lambda df: pd.qcut(df[self.p_value_column].rank(method="first"),
+                               num_partitions, labels=False),
             meta=("partition", "int64")
         )
-        adjusted_partitions = data_partitioned.groupby("partition").apply(
+
+        # Apply BH correction within partitions while keeping all columns
+        adjusted_partitions = data_with_partition.groupby("partition").apply(
             self._apply_bh_within_partition,
-            meta=data_partitioned
+            meta=data_with_partition
         )
+
+        # Remove partition column but keep everything else
         return adjusted_partitions.drop("partition", axis=1).reset_index(drop=True)
 
     def _apply_bh_within_partition(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -46,12 +55,17 @@ class FDRCalculator:
 
     def _sequential_fdr(self) -> dd.DataFrame:
         collected_data = self.data.compute()
+        # Sort and keep all columns
         sorted_data = collected_data.sort_values(self.p_value_column)
         m = len(sorted_data)
+
+        # Add q_values while preserving all other columns
         sorted_data["q_value"] = [
             min(p * m / rank, 1) for rank, p in enumerate(sorted_data[self.p_value_column], start=1)
         ]
-        return sorted_data
+
+        # Return with all original columns
+        return sorted_data.reset_index(drop=True)
 
     def _get_fdr_threshold(self):
         if self.metadata.interaction_type == "intra":
