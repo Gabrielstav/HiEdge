@@ -64,7 +64,8 @@ class PossiblePairsCalculator:
         return total_possible_intra, intra_per_chromosome_df
 
     def calculate_total_possible_bins_inter(self):
-        total_unique_bins = self.data[["chr_1", "start_1"]].drop_duplicates().shape[0].compute()
+        # Trying to keep this lazy
+        total_unique_bins = self.data[["chr_1", "start_1"]].drop_duplicates().shape[0]
 
         # Calculate total possible inter interactions
         total_possible_inter = (total_unique_bins * (total_unique_bins - 1)) // 2

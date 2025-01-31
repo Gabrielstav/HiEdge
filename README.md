@@ -54,6 +54,11 @@ If needed you can also name the run with the (--run_name, -r flag), if no name i
 python main.py -c path/to/config_file.yaml -r run_name
 ```
 
+To test the pipeline - simply run this in the project root (with the default config file settings).
+This will use the included test data and reference data to run the pipeline. 
+To run with your own data, all you really need to do is change the input path to point to some folder 
+cotaining your Hi-C Pro output files - and that's it! 
+
 ## Configuration
 
 The configuration file is a YAML file that specifies the settings for the pipeline.
